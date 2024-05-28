@@ -3,6 +3,7 @@ import * as cache from '@actions/cache';
 
 import fs from 'fs';
 import {State} from './cache-distributions/cache-distributor';
+import path from 'path';
 
 // Added early exit to resolve issue with slow post action step:
 // - https://github.com/actions/setup-node/issues/878
@@ -43,6 +44,11 @@ async function saveCache(packageManager: string) {
         ', '
       )}`
     );
+    // Create the directory
+    cachePaths.forEach((cachePath) => {
+      fs.mkdirSync(path.resolve(cachePath), { recursive: true });
+    });
+
   }
 
   const primaryKey = core.getState(State.STATE_CACHE_PRIMARY_KEY);
