@@ -80919,6 +80919,7 @@ const core = __importStar(__nccwpck_require__(2186));
 const cache = __importStar(__nccwpck_require__(7799));
 const fs_1 = __importDefault(__nccwpck_require__(7147));
 const cache_distributor_1 = __nccwpck_require__(8953);
+const path_1 = __importDefault(__nccwpck_require__(1017));
 // Added early exit to resolve issue with slow post action step:
 // - https://github.com/actions/setup-node/issues/878
 // https://github.com/actions/cache/pull/1217
@@ -80950,7 +80951,11 @@ function saveCache(packageManager) {
         const cachePaths = JSON.parse(cachePathState);
         core.debug(`paths for caching are ${cachePaths.join(', ')}`);
         if (!isCacheDirectoryExists(cachePaths)) {
-            throw new Error(`Cache folder path is retrieved for ${packageManager} but doesn't exist on disk: ${cachePaths.join(', ')}`);
+            core.info(`Cache folder path is retrieved for ${packageManager} but doesn't exist on disk: ${cachePaths.join(', ')}`);
+            // Create the directory
+            cachePaths.forEach((cachePath) => {
+                fs_1.default.mkdirSync(path_1.default.resolve(cachePath), { recursive: true });
+            });
         }
         const primaryKey = core.getState(cache_distributor_1.State.STATE_CACHE_PRIMARY_KEY);
         const matchedKey = core.getState(cache_distributor_1.State.CACHE_MATCHED_KEY);
