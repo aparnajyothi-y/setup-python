@@ -39,7 +39,7 @@ async function saveCache(packageManager: string) {
   core.debug(`paths for caching are ${cachePaths.join(', ')}`);
 
   if (!isCacheDirectoryExists(cachePaths)) {
-    throw new Error(
+    core.info(
       `Cache folder path is retrieved for ${packageManager} but doesn't exist on disk: ${cachePaths.join(
         ', '
       )}`
