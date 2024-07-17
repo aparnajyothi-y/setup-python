@@ -77,7 +77,7 @@ class PoetryCache extends CacheDistributor {
       );
 
       if (exitCode) {
-        core.warning(stderr || 'Poetry command failed');
+        core.warning(`Failed to run 'poetry env use' for project at ${poetryProject}: ${stderr}`);
       }
     }
   }
