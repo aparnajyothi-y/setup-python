@@ -77,7 +77,7 @@ class PoetryCache extends CacheDistributor {
       );
 
       if (exitCode) {
-        logWarning(stderr);
+        core.warning(stderr || 'Poetry command failed');
       }
     }
   }
