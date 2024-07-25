@@ -1,3 +1,4 @@
+
 import * as glob from '@actions/glob';
 import * as os from 'os';
 import * as path from 'path';
@@ -32,7 +33,7 @@ class PipenvCache extends CacheDistributor {
 
   protected async computeKeys() {
     const hash = await glob.hashFiles(this.patterns);
-    const primaryKey = `${this.CACHE_KEY_PREFIX}-${process.env['RUNNER_OS']}-python-${this.pythonVersion}-${this.packageManager}-${hash}`;
+    const primaryKey = `${this.CACHE_KEY_PREFIX}-${process.env['RUNNER_OS']}-${process.arch}-python-${this.pythonVersion}-${this.packageManager}-${hash}`;
     const restoreKey = undefined;
     return {
       primaryKey,
