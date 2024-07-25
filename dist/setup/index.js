@@ -90654,7 +90654,7 @@ class PoetryCache extends cache_distributor_1.default {
             for (const poetryProject of this.poetryProjects) {
                 const { exitCode, stderr } = yield exec.getExecOutput('poetry', ['env', 'use', pythonLocation], { ignoreReturnCode: true, cwd: poetryProject });
                 if (exitCode) {
-                    (0, utils_1.logWarning)(stderr);
+                    core.warning(`Failed to run 'poetry env use' for project at ${poetryProject}: ${stderr}`);
                 }
             }
         });
