@@ -7,7 +7,6 @@ import * as semver from 'semver';
 import * as toml from '@iarna/toml';
 import * as exec from '@actions/exec';
 import * as ifm from '@actions/http-client/lib/interfaces';
-
 import * as http from 'http';
 
 export const IS_WINDOWS = process.platform === 'win32';
@@ -16,6 +15,13 @@ export const IS_MAC = process.platform === 'darwin';
 export const WINDOWS_ARCHS = ['x86', 'x64'];
 export const WINDOWS_PLATFORMS = ['win32', 'win64'];
 const PYPY_VERSION_FILE = 'PYPY_VERSION';
+
+/**
+ * Helper function to resolve paths based on the optional `working-directory` parameter.
+ */
+function resolvePathInWorkingDirectory(filePath: string, workingDirectory?: string): string {
+  return workingDirectory ? path.resolve(workingDirectory, filePath) : filePath;
+}
 
 export interface IPyPyManifestAsset {
   filename: string;
@@ -50,10 +56,12 @@ export function createSymlinkInFolder(
   folderPath: string,
   sourceName: string,
   targetName: string,
-  setExecutable = false
+  setExecutable = false,
+  workingDirectory?: string
 ) {
-  const sourcePath = path.join(folderPath, sourceName);
-  const targetPath = path.join(folderPath, targetName);
+  const resolvedFolderPath = resolvePathInWorkingDirectory(folderPath, workingDirectory);
+  const sourcePath = path.join(resolvedFolderPath, sourceName);
+  const targetPath = path.join(resolvedFolderPath, targetName);
   if (fs.existsSync(targetPath)) {
     return;
   }
@@ -84,9 +92,10 @@ export function getPyPyVersionFromPath(installDir: string) {
  * so we put PYPY_VERSION file to PyPy directory when install it to VM and read it when we need to know version
  * PYPY_VERSION contains exact version from 'versions.json'
  */
-export function readExactPyPyVersionFile(installDir: string) {
+export function readExactPyPyVersionFile(installDir: string, workingDirectory?: string) {
+  const resolvedInstallDir = resolvePathInWorkingDirectory(installDir, workingDirectory);
   let pypyVersion = '';
-  const fileVersion = path.join(installDir, PYPY_VERSION_FILE);
+  const fileVersion = path.join(resolvedInstallDir, PYPY_VERSION_FILE);
   if (fs.existsSync(fileVersion)) {
     pypyVersion = fs.readFileSync(fileVersion).toString().trim();
   }
@@ -96,9 +105,11 @@ export function readExactPyPyVersionFile(installDir: string) {
 
 export function writeExactPyPyVersionFile(
   installDir: string,
-  resolvedPyPyVersion: string
+  resolvedPyPyVersion: string,
+  workingDirectory?: string
 ) {
-  const pypyFilePath = path.join(installDir, PYPY_VERSION_FILE);
+  const resolvedInstallDir = resolvePathInWorkingDirectory(installDir, workingDirectory);
+  const pypyFilePath = path.join(resolvedInstallDir, PYPY_VERSION_FILE);
   fs.writeFileSync(pypyFilePath, resolvedPyPyVersion);
 }
 
@@ -227,10 +238,11 @@ function extractValue(obj: any, keys: string[]): string | undefined {
  * assumed to be specified using poetry under `tool.poetry.dependencies.python`.
  * If none is present, returns an empty list.
  */
-export function getVersionInputFromTomlFile(versionFile: string): string[] {
+export function getVersionInputFromTomlFile(versionFile: string, workingDirectory?: string): string[] {
   core.debug(`Trying to resolve version form ${versionFile}`);
 
-  let pyprojectFile = fs.readFileSync(versionFile, 'utf8');
+  const resolvedVersionFile = resolvePathInWorkingDirectory(versionFile, workingDirectory);
+  let pyprojectFile = fs.readFileSync(resolvedVersionFile, 'utf8');
   // Normalize the line endings in the pyprojectFile
   pyprojectFile = pyprojectFile.replace(/\r\n/g, '\n');
 
@@ -250,7 +262,7 @@ export function getVersionInputFromTomlFile(versionFile: string): string[] {
     versions.push(version);
   }
 
-  core.info(`Extracted ${versions} from ${versionFile}`);
+  core.info(`Extracted ${versions} from ${resolvedVersionFile}`);
   const rawVersions = Array.from(versions, version =>
     version.split(',').join(' ')
   );
@@ -271,21 +283,22 @@ export function getVersionInputFromTomlFile(versionFile: string): string[] {
 /**
  * Python version extracted from a plain text file.
  */
-export function getVersionInputFromPlainFile(versionFile: string): string[] {
+export function getVersionInputFromPlainFile(versionFile: string, workingDirectory?: string): string[] {
   core.debug(`Trying to resolve version form ${versionFile}`);
-  const version = fs.readFileSync(versionFile, 'utf8').trim();
-  core.info(`Resolved ${versionFile} as ${version}`);
+  const resolvedVersionFile = resolvePathInWorkingDirectory(versionFile, workingDirectory);
+  const version = fs.readFileSync(resolvedVersionFile, 'utf8').trim();
+  core.info(`Resolved ${resolvedVersionFile} as ${version}`);
   return [version];
 }
 
 /**
  * Python version extracted from a plain or TOML file.
  */
-export function getVersionInputFromFile(versionFile: string): string[] {
+export function getVersionInputFromFile(versionFile: string, workingDirectory?: string): string[] {
   if (versionFile.endsWith('.toml')) {
-    return getVersionInputFromTomlFile(versionFile);
+    return getVersionInputFromTomlFile(versionFile, workingDirectory);
   } else {
-    return getVersionInputFromPlainFile(versionFile);
+    return getVersionInputFromPlainFile(versionFile, workingDirectory);
   }
 }
 
@@ -294,8 +307,9 @@ export function getVersionInputFromFile(versionFile: string): string[] {
  *  - On Linux and macOS, the Python interpreter is in 'bin'.
  *  - On Windows, it is in the installation root.
  */
-export function getBinaryDirectory(installDir: string) {
-  return IS_WINDOWS ? installDir : path.join(installDir, 'bin');
+export function getBinaryDirectory(installDir: string, workingDirectory?: string) {
+  const resolvedInstallDir = resolvePathInWorkingDirectory(installDir, workingDirectory);
+  return IS_WINDOWS ? resolvedInstallDir : path.join(resolvedInstallDir, 'bin');
 }
 
 /**

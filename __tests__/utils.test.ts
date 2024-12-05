@@ -21,6 +21,13 @@ import {
 jest.mock('@actions/cache');
 jest.mock('@actions/core');
 
+const tempDir = path.join(
+  __dirname,
+  'runner',
+  path.join(Math.random().toString(36).substring(7)),
+  'temp'
+);
+
 describe('validatePythonVersionFormatForPyPy', () => {
   it.each([
     ['3.6', true],
@@ -86,13 +93,6 @@ describe('isCacheFeatureAvailable', () => {
   });
 });
 
-const tempDir = path.join(
-  __dirname,
-  'runner',
-  path.join(Math.random().toString(36).substring(7)),
-  'temp'
-);
-
 describe('Version from file test', () => {
   it.each([getVersionInputFromPlainFile, getVersionInputFromFile])(
     'Version from plain file test',
@@ -102,9 +102,10 @@ describe('Version from file test', () => {
       const pythonVersionFilePath = path.join(tempDir, pythonVersionFileName);
       const pythonVersionFileContent = '3.7';
       fs.writeFileSync(pythonVersionFilePath, pythonVersionFileContent);
-      expect(_fn(pythonVersionFilePath)).toEqual([pythonVersionFileContent]);
+      expect(await _fn(pythonVersionFilePath, tempDir)).toEqual([pythonVersionFileContent]);
     }
   );
+  
   it.each([getVersionInputFromTomlFile, getVersionInputFromFile])(
     'Version from standard pyproject.toml test',
     async _fn => {
@@ -114,9 +115,10 @@ describe('Version from file test', () => {
       const pythonVersion = '>=3.7.0';
       const pythonVersionFileContent = `[project]\nrequires-python = "${pythonVersion}"`;
       fs.writeFileSync(pythonVersionFilePath, pythonVersionFileContent);
-      expect(_fn(pythonVersionFilePath)).toEqual([pythonVersion]);
+      expect(await _fn(pythonVersionFilePath, tempDir)).toEqual([pythonVersion]);
     }
   );
+
   it.each([getVersionInputFromTomlFile, getVersionInputFromFile])(
     'Version from poetry pyproject.toml test',
     async _fn => {
@@ -126,9 +128,10 @@ describe('Version from file test', () => {
       const pythonVersion = '>=3.7.0';
       const pythonVersionFileContent = `[tool.poetry.dependencies]\npython = "${pythonVersion}"`;
       fs.writeFileSync(pythonVersionFilePath, pythonVersionFileContent);
-      expect(_fn(pythonVersionFilePath)).toEqual([pythonVersion]);
+      expect(await _fn(pythonVersionFilePath, tempDir)).toEqual([pythonVersion]);
     }
   );
+
   it.each([getVersionInputFromTomlFile, getVersionInputFromFile])(
     'Version undefined',
     async _fn => {
@@ -136,7 +139,7 @@ describe('Version from file test', () => {
       const pythonVersionFileName = 'pyproject.toml';
       const pythonVersionFilePath = path.join(tempDir, pythonVersionFileName);
       fs.writeFileSync(pythonVersionFilePath, ``);
-      expect(_fn(pythonVersionFilePath)).toEqual([]);
+      expect(await _fn(pythonVersionFilePath, tempDir)).toEqual([]);
     }
   );
 });
@@ -168,7 +171,7 @@ describe('getDownloadFileName', () => {
   const tempDir = path.join(__dirname, 'runner', 'temp');
 
   beforeEach(() => {
-    process.env = {...originalEnv};
+    process.env = { ...originalEnv };
   });
 
   afterEach(() => {
@@ -202,7 +205,7 @@ describe('isGhes', () => {
 
   beforeEach(() => {
     jest.resetModules();
-    process.env = {...pristineEnv};
+    process.env = { ...pristineEnv };
   });
 
   afterAll(() => {
