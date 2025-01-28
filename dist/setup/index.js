@@ -99613,6 +99613,9 @@ function useCpythonVersion(version, architecture, updateEnvironment, checkLatest
                 const minor = semver.minor(version);
                 const userScriptsDir = path.join(process.env['APPDATA'] || '', 'Python', `Python${major}${minor}`, 'Scripts');
                 core.addPath(userScriptsDir);
+                // Debug: Print out PATH to verify if it's added
+                core.info(`Added to PATH: ${userScriptsDir}`);
+                core.info(`Current PATH: ${process.env['PATH']}`);
             }
             // On Linux and macOS, pip will create the --user directory and add it to PATH as needed.
         }
