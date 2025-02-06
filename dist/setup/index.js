@@ -99606,14 +99606,11 @@ function useCpythonVersion(version, architecture, updateEnvironment, checkLatest
             core.addPath(_binDir);
             if (utils_1.IS_WINDOWS) {
                 // Add --user directory
-                // `installDir` from tool cache should look like $RUNNER_TOOL_CACHE/Python/<semantic version>/x64/
-                // So if `findLocalTool` succeeded above, we must have a conformant `installDir`
                 const version = path.basename(path.dirname(installDir));
                 const major = semver.major(version);
                 const minor = semver.minor(version);
                 // Initialize architecture as an empty string
                 let architecture = '';
-                // For versions >= 3.10, add architecture
                 if (major >= 3 && minor >= 10) {
                     if (installDir.includes('x64')) {
                         architecture = '-64';
@@ -99622,16 +99619,14 @@ function useCpythonVersion(version, architecture, updateEnvironment, checkLatest
                         architecture = '-32';
                     }
                 }
-                // Construct the userScriptsDir based on the version and architecture
                 const pythonVersionPath = major >= 3 && minor >= 10
                     ? `Python${major}${minor}${architecture}` // Add architecture for >= 3.10
                     : `Python${major}${minor}`; // No architecture for < 3.10
                 const userScriptsDir = path.join(process.env['APPDATA'] || '', 'Python', pythonVersionPath, 'Scripts');
-                // Add userScriptsDir to PATH to avoid the warning
+                // Add userScriptsDir to PATH
                 core.addPath(userScriptsDir);
-                // Log the current PATH variable to ensure it is being correctly updated
-                core.debug(`Current PATH: ${process.env['PATH']}`);
-                // Also log the directory to make sure it's added properly
+                // Log current PATH before the script executes
+                core.debug(`Updated PATH before the script execution: ${process.env['PATH']}`);
                 core.debug(`Added to PATH: ${userScriptsDir}`);
             }
             // On Linux and macOS, pip will create the --user directory and add it to PATH as needed.

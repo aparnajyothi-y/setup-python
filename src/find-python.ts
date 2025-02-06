@@ -135,8 +135,6 @@ export async function useCpythonVersion(
 
     if (IS_WINDOWS) {
       // Add --user directory
-      // `installDir` from tool cache should look like $RUNNER_TOOL_CACHE/Python/<semantic version>/x64/
-      // So if `findLocalTool` succeeded above, we must have a conformant `installDir`
       const version = path.basename(path.dirname(installDir));
       const major = semver.major(version);
       const minor = semver.minor(version);
@@ -144,7 +142,6 @@ export async function useCpythonVersion(
       // Initialize architecture as an empty string
       let architecture = '';
     
-      // For versions >= 3.10, add architecture
       if (major >= 3 && minor >= 10) {
         if (installDir.includes('x64')) {
           architecture = '-64';
@@ -153,7 +150,6 @@ export async function useCpythonVersion(
         }
       }
     
-      // Construct the userScriptsDir based on the version and architecture
       const pythonVersionPath = major >= 3 && minor >= 10
         ? `Python${major}${minor}${architecture}`  // Add architecture for >= 3.10
         : `Python${major}${minor}`;  // No architecture for < 3.10
@@ -165,13 +161,11 @@ export async function useCpythonVersion(
         'Scripts'
       );
     
-      // Add userScriptsDir to PATH to avoid the warning
+      // Add userScriptsDir to PATH
       core.addPath(userScriptsDir);
       
-      // Log the current PATH variable to ensure it is being correctly updated
-      core.debug(`Current PATH: ${process.env['PATH']}`);
-      
-      // Also log the directory to make sure it's added properly
+      // Log current PATH before the script executes
+      core.debug(`Updated PATH before the script execution: ${process.env['PATH']}`);
       core.debug(`Added to PATH: ${userScriptsDir}`);
     }
     
