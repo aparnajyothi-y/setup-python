@@ -161,13 +161,14 @@ export async function useCpythonVersion(
         'Scripts'
       );
     
-      // Add userScriptsDir to PATH
-      core.addPath(userScriptsDir);
-      
-      // Log current PATH before the script executes
+      // Log the updated path explicitly
       core.debug(`Updated PATH before the script execution: ${process.env['PATH']}`);
       core.debug(`Added to PATH: ${userScriptsDir}`);
+    
+      // Explicitly update PATH for the current environment
+      core.exportVariable('PATH', process.env['PATH'] + `;${userScriptsDir}`);
     }
+    
     
     // On Linux and macOS, pip will create the --user directory and add it to PATH as needed.
   }
