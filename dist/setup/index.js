@@ -99611,7 +99611,7 @@ function useCpythonVersion(version, architecture, updateEnvironment, checkLatest
                 const minor = semver.minor(version);
                 if (major >= 3 && (major > 3 || minor >= 10)) {
                     // For Python >= 3.10, dynamically detect architecture
-                    const arch = process.arch === 'x64' ? '64' : '32'; // x64 -> 64, others -> 32
+                    const arch = architecture === 'x64' ? '64' : '32'; // x64 -> 64, others -> 32
                     const userScriptsDir = path.join(process.env['APPDATA'] || '', 'Python', `Python${major}${minor}-${arch}`, // Add architecture-specific folder (e.g., Python310-64 or Python310-32)
                     'Scripts');
                     // Add the dynamically constructed path to the environment PATH variable

@@ -141,7 +141,7 @@ export async function useCpythonVersion(
   
       if (major >= 3 && (major > 3 || minor >= 10)) {
         // For Python >= 3.10, dynamically detect architecture
-        const arch = process.arch === 'x64' ? '64' : '32'; // x64 -> 64, others -> 32
+        const arch = architecture === 'x64' ? '64' : '32'; // x64 -> 64, others -> 32
   
         const userScriptsDir = path.join(
           process.env['APPDATA'] || '',
