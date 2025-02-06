@@ -99628,7 +99628,7 @@ function useCpythonVersion(version, architecture, updateEnvironment, checkLatest
                     // For versions < 3.10, no architecture-specific directory is needed
                     const userScriptsDir = path.join(process.env['APPDATA'] || '', 'Python', `Python${major}${minor}`, // For versions < 3.10, no architecture suffix needed
                     'Scripts');
-                    // Update the PATH for versions < 3.10
+                    // Update the PATH for versions < 3.10 (ensure the correct directory is added to PATH)
                     core.exportVariable('PATH', process.env['PATH'] + `;${userScriptsDir}`);
                     core.debug(`Updated PATH for Python ${major}.${minor}: ${process.env['PATH']}`);
                 }

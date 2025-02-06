@@ -172,12 +172,11 @@ if (IS_WINDOWS) {
       'Scripts'
     );
 
-    // Update the PATH for versions < 3.10
+    // Update the PATH for versions < 3.10 (ensure the correct directory is added to PATH)
     core.exportVariable('PATH', process.env['PATH'] + `;${userScriptsDir}`);
     core.debug(`Updated PATH for Python ${major}.${minor}: ${process.env['PATH']}`);
   }
 }
-    
     // On Linux and macOS, pip will create the --user directory and add it to PATH as needed.
   }
 
