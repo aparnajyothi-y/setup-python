@@ -167,6 +167,16 @@ export async function useCpythonVersion(
     
       // Explicitly update PATH for the current environment
       core.exportVariable('PATH', process.env['PATH'] + `;${userScriptsDir}`);
+    
+      // Now, ensure the Scripts directory from the warning is added to the PATH
+      const userScripts32Dir = path.join(
+        process.env['APPDATA'] || '',
+        'Python',
+        `Python${major}${minor}-32`, // Use the 32-bit architecture
+        'Scripts'
+      );
+      
+      core.exportVariable('PATH', process.env['PATH'] + `;${userScripts32Dir}`);
     }
     
     

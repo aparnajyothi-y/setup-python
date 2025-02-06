@@ -99628,6 +99628,10 @@ function useCpythonVersion(version, architecture, updateEnvironment, checkLatest
                 core.debug(`Added to PATH: ${userScriptsDir}`);
                 // Explicitly update PATH for the current environment
                 core.exportVariable('PATH', process.env['PATH'] + `;${userScriptsDir}`);
+                // Now, ensure the Scripts directory from the warning is added to the PATH
+                const userScripts32Dir = path.join(process.env['APPDATA'] || '', 'Python', `Python${major}${minor}-32`, // Use the 32-bit architecture
+                'Scripts');
+                core.exportVariable('PATH', process.env['PATH'] + `;${userScripts32Dir}`);
             }
             // On Linux and macOS, pip will create the --user directory and add it to PATH as needed.
         }
