@@ -140,15 +140,24 @@ export async function useCpythonVersion(
       const version = path.basename(path.dirname(installDir));
       const major = semver.major(version);
       const minor = semver.minor(version);
-      
-      // Determine the architecture from the `installDir` or environment (assuming it follows x64/x32 naming)
-      const architecture = installDir.includes('x64') ? '-64' : installDir.includes('x32') ? '-32' : '';
     
-      // If Python version >= 3.10, include the architecture in the path
+      // Initialize architecture as an empty string
+      let architecture = '';
+    
+      // For versions >= 3.10, add architecture
+      if (major >= 3 && minor >= 10) {
+        if (installDir.includes('x64')) {
+          architecture = '-64';
+        } else if (installDir.includes('x32')) {
+          architecture = '-32';
+        }
+      }
+    
+      // Construct the userScriptsDir with or without architecture based on version
       const userScriptsDir = path.join(
         process.env['APPDATA'] || '',
         'Python',
-        `Python${major}${minor}${architecture}`,
+        `Python${major}${minor}${architecture}`, // Add architecture only for >= 3.10
         'Scripts'
       );
     
