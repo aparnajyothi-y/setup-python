@@ -140,7 +140,7 @@ export async function useCpythonVersion(
       const version = path.basename(path.dirname(installDir));
       const major = semver.major(version);
       const minor = semver.minor(version);
-      
+    
       // Initialize architecture as an empty string
       let architecture = '';
     
@@ -153,12 +153,11 @@ export async function useCpythonVersion(
         }
       }
     
-      // Construct the base part of the Python version directory
-      const pythonVersionPath = major >= 3 && minor >= 10 
-        ? `Python${major}${minor}${architecture}`  // Add architecture only for >= 3.10
-        : `Python${major}${minor}`;  // No architecture for versions < 3.10
+      // Construct the userScriptsDir based on the version and architecture
+      const pythonVersionPath = major >= 3 && minor >= 10
+        ? `Python${major}${minor}${architecture}`  // Add architecture for >= 3.10
+        : `Python${major}${minor}`;  // No architecture for < 3.10
     
-      // Construct the full userScriptsDir path
       const userScriptsDir = path.join(
         process.env['APPDATA'] || '',
         'Python',
@@ -166,8 +165,16 @@ export async function useCpythonVersion(
         'Scripts'
       );
     
+      // Add userScriptsDir to PATH to avoid the warning
       core.addPath(userScriptsDir);
+      
+      // Log the current PATH variable to ensure it is being correctly updated
+      core.debug(`Current PATH: ${process.env['PATH']}`);
+      
+      // Also log the directory to make sure it's added properly
+      core.debug(`Added to PATH: ${userScriptsDir}`);
     }
+    
     // On Linux and macOS, pip will create the --user directory and add it to PATH as needed.
   }
 

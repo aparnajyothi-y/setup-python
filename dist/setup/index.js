@@ -99622,13 +99622,17 @@ function useCpythonVersion(version, architecture, updateEnvironment, checkLatest
                         architecture = '-32';
                     }
                 }
-                // Construct the base part of the Python version directory
+                // Construct the userScriptsDir based on the version and architecture
                 const pythonVersionPath = major >= 3 && minor >= 10
-                    ? `Python${major}${minor}${architecture}` // Add architecture only for >= 3.10
-                    : `Python${major}${minor}`; // No architecture for versions < 3.10
-                // Construct the full userScriptsDir path
+                    ? `Python${major}${minor}${architecture}` // Add architecture for >= 3.10
+                    : `Python${major}${minor}`; // No architecture for < 3.10
                 const userScriptsDir = path.join(process.env['APPDATA'] || '', 'Python', pythonVersionPath, 'Scripts');
+                // Add userScriptsDir to PATH to avoid the warning
                 core.addPath(userScriptsDir);
+                // Log the current PATH variable to ensure it is being correctly updated
+                core.debug(`Current PATH: ${process.env['PATH']}`);
+                // Also log the directory to make sure it's added properly
+                core.debug(`Added to PATH: ${userScriptsDir}`);
             }
             // On Linux and macOS, pip will create the --user directory and add it to PATH as needed.
         }
