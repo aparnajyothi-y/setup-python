@@ -140,7 +140,7 @@ export async function useCpythonVersion(
       const version = path.basename(path.dirname(installDir));
       const major = semver.major(version);
       const minor = semver.minor(version);
-    
+      
       // Initialize architecture as an empty string
       let architecture = '';
     
@@ -153,11 +153,16 @@ export async function useCpythonVersion(
         }
       }
     
-      // Construct the userScriptsDir with or without architecture based on version
+      // Construct the base part of the Python version directory
+      const pythonVersionPath = major >= 3 && minor >= 10 
+        ? `Python${major}${minor}${architecture}`  // Add architecture only for >= 3.10
+        : `Python${major}${minor}`;  // No architecture for versions < 3.10
+    
+      // Construct the full userScriptsDir path
       const userScriptsDir = path.join(
         process.env['APPDATA'] || '',
         'Python',
-        `Python${major}${minor}${architecture}`, // Add architecture only for >= 3.10
+        pythonVersionPath,
         'Scripts'
       );
     
