@@ -99611,7 +99611,10 @@ function useCpythonVersion(version, architecture, updateEnvironment, checkLatest
                 const version = path.basename(path.dirname(installDir));
                 const major = semver.major(version);
                 const minor = semver.minor(version);
-                const userScriptsDir = path.join(process.env['APPDATA'] || '', 'Python', `Python${major}${minor}`, 'Scripts');
+                // Determine the architecture from the `installDir` or environment (assuming it follows x64/x32 naming)
+                const architecture = installDir.includes('x64') ? '-64' : installDir.includes('x32') ? '-32' : '';
+                // If Python version >= 3.10, include the architecture in the path
+                const userScriptsDir = path.join(process.env['APPDATA'] || '', 'Python', `Python${major}${minor}${architecture}`, 'Scripts');
                 core.addPath(userScriptsDir);
             }
             // On Linux and macOS, pip will create the --user directory and add it to PATH as needed.
