@@ -133,50 +133,40 @@ export async function useCpythonVersion(
     core.addPath(installDir);
     core.addPath(_binDir);
 
-    // Read the version from the environment variable or default to '3.12' if not available
-const version = process.env['PYTHON_VERSION'] || '3.12'; // Assuming you get the Python version from environment or input
-
-// Split the version into major and minor versions
-const versionParts = version.split('.');
-const major = parseInt(versionParts[0]);
-const minor = parseInt(versionParts[1]);
-
-// Check for Windows OS
-const IS_WINDOWS = process.platform === 'win32';
-
-if (IS_WINDOWS) {
-  if (major >= 3 && (major > 3 || minor >= 10)) {
-    // Dynamically detect architecture (x64, x86, or other)
-    const arch = process.arch; // 'x64' for 64-bit, 'x86' or 'ia32' for 32-bit
-
-    // Construct the architecture suffix (-32 or -64) based on the system architecture
-    const archSuffix = arch === 'x64' ? '-64' : '-32';
-
-    // Define the user Scripts directory path based on the architecture for versions >= 3.10
-    const userScriptsDir = path.join(
-      process.env['APPDATA'] || '',
-      'Python',
-      `Python${major}${minor}${archSuffix}`, // Use the dynamically determined architecture suffix
-      'Scripts'
-    );
-
-    // Update the PATH environment variable with the architecture-specific Scripts directory
-    core.exportVariable('PATH', process.env['PATH'] + `;${userScriptsDir}`);
-    core.debug(`Updated PATH for Python ${major}.${minor} with ${arch === 'x64' ? '64-bit' : '32-bit'} architecture: ${process.env['PATH']}`);
-  } else {
-    // For versions < 3.10, no architecture-specific directory is needed
-    const userScriptsDir = path.join(
-      process.env['APPDATA'] || '',
-      'Python',
-      `Python${major}${minor}`, // For versions < 3.10, no architecture suffix needed
-      'Scripts'
-    );
-
-    // Update the PATH for versions < 3.10 (ensure the correct directory is added to PATH)
-    core.exportVariable('PATH', process.env['PATH'] + `;${userScriptsDir}`);
-    core.debug(`Updated PATH for Python ${major}.${minor}: ${process.env['PATH']}`);
-  }
-}
+    if (IS_WINDOWS) {
+      // Get Python version from the installDir path (Example: Python 3.10.5 from 'Python/3.10.5/x64/')
+      const version = path.basename(path.dirname(installDir)); // Example: '3.10.5'
+      const major = semver.major(version);
+      const minor = semver.minor(version);
+  
+      if (major >= 3 && (major > 3 || minor >= 10)) {
+        // For Python >= 3.10, dynamically detect architecture
+        const arch = process.arch === 'x64' ? '64' : '32'; // x64 -> 64, others -> 32
+  
+        const userScriptsDir = path.join(
+          process.env['APPDATA'] || '',
+          'Python',
+          `Python${major}${minor}-${arch}`, // Add architecture-specific folder (e.g., Python310-64 or Python310-32)
+          'Scripts'
+        );
+        
+        // Add the dynamically constructed path to the environment PATH variable
+        core.addPath(userScriptsDir);
+        core.debug(`Updated PATH with architecture-specific path: ${userScriptsDir}`);
+      } else {
+        // For Python < 3.10, add the default path without architecture-specific folder
+        const userScriptsDir = path.join(
+          process.env['APPDATA'] || '',
+          'Python',
+          `Python${major}${minor}`, // Use the default folder (e.g., Python39)
+          'Scripts'
+        );
+        
+        // Add the default path to the environment PATH variable
+        core.addPath(userScriptsDir);
+        core.debug(`Updated PATH for Python < 3.10: ${userScriptsDir}`);
+      }
+    }
     // On Linux and macOS, pip will create the --user directory and add it to PATH as needed.
   }
 
