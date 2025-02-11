@@ -65,19 +65,21 @@ function resolveVersionInput() {
     }
   } else {
     if (versionFile) {
+      // Validate if the python-version-file exists
       if (!fs.existsSync(versionFile)) {
         throw new Error(
           `The specified python version file at: ${versionFile} doesn't exist.`
         );
       }
-      versions = getVersionInputFromFile(versionFile);
-    } else {
-      // First try .python-version
-      versions = resolveVersionInputFromDefaultFile();
       
-      // Then try .tool-versions if .python-version is not available
+      // If versionFile exists, extract versions from it
+      versions = getVersionInputFromFile(versionFile);
+      core.debug('Versions found in python-version-file:');
+      core.debug(versions.join(', ')); // Debug the versions found in the version file
+
+      // After extracting from versionFile, proceed to check the .tool-versions file if needed
       if (versions.length === 0) {
-        core.debug('No versions found in .python-version or python-version-file. Checking .tool-versions...');
+        core.debug('No versions found in the python-version-file. Checking .tool-versions...');
         versions = getPythonVersionFromToolFile();
         if (versions.length > 0) {
           core.debug('Versions found in .tool-versions:');
@@ -86,6 +88,9 @@ function resolveVersionInput() {
           core.warning('No Python versions found in .tool-versions.');
         }
       }
+    } else {
+      // If no python-version-file is provided, try the default flow (e.g., .python-version)
+      versions = resolveVersionInputFromDefaultFile();
     }
   }
 
