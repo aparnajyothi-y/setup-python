@@ -13,7 +13,8 @@ import {
   IS_MAC,
   getVersionInputFromFile,
   getVersionInputFromPlainFile,
-  parsePythonVersionFile
+  parsePythonVersionFile,
+  getPythonVersionFromToolFile
 } from './utils';
 
 function isPyPyVersion(versionSpec: string) {
@@ -71,13 +72,22 @@ function resolveVersionInput() {
       }
       versions = getVersionInputFromFile(versionFile);
     } else {
+      // First try .python-version
       versions = resolveVersionInputFromDefaultFile();
+      
+      // Then try .tool-versions if .python-version is not available
+      if (versions.length === 0) {
+        versions = getPythonVersionFromToolFile();
+      }
     }
   }
-  const version = parsePythonVersionFile(
-    fs.readFileSync(versionFile, 'utf8')
-  );
-  core.info(`Resolved ${versionFile} as ${version}`);
+  // Assuming you need to parse the version here
+  if (versions.length > 0) {
+    const version = parsePythonVersionFile(
+      fs.readFileSync(versionFile, 'utf8')
+    );
+    core.info(`Resolved ${versionFile} as ${version}`);
+  }
 
   return versions;
 }

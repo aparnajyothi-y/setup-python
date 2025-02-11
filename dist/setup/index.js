@@ -100349,11 +100349,19 @@ function resolveVersionInput() {
             versions = (0, utils_1.getVersionInputFromFile)(versionFile);
         }
         else {
+            // First try .python-version
             versions = resolveVersionInputFromDefaultFile();
+            // Then try .tool-versions if .python-version is not available
+            if (versions.length === 0) {
+                versions = (0, utils_1.getPythonVersionFromToolFile)();
+            }
         }
     }
-    const version = (0, utils_1.parsePythonVersionFile)(fs_1.default.readFileSync(versionFile, 'utf8'));
-    core.info(`Resolved ${versionFile} as ${version}`);
+    // Assuming you need to parse the version here
+    if (versions.length > 0) {
+        const version = (0, utils_1.parsePythonVersionFile)(fs_1.default.readFileSync(versionFile, 'utf8'));
+        core.info(`Resolved ${versionFile} as ${version}`);
+    }
     return versions;
 }
 function run() {
@@ -100458,7 +100466,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getDownloadFileName = exports.getNextPageUrl = exports.getBinaryDirectory = exports.getVersionInputFromFile = exports.getVersionInputFromPlainFile = exports.getVersionInputFromTomlFile = exports.getOSInfo = exports.getLinuxInfo = exports.logWarning = exports.isCacheFeatureAvailable = exports.isGhes = exports.validatePythonVersionFormatForPyPy = exports.writeExactPyPyVersionFile = exports.readExactPyPyVersionFile = exports.getPyPyVersionFromPath = exports.isNightlyKeyword = exports.validateVersion = exports.createSymlinkInFolder = exports.parsePythonVersionFile = exports.WINDOWS_PLATFORMS = exports.WINDOWS_ARCHS = exports.IS_MAC = exports.IS_LINUX = exports.IS_WINDOWS = void 0;
+exports.getDownloadFileName = exports.getNextPageUrl = exports.getBinaryDirectory = exports.getVersionInputFromFile = exports.getVersionInputFromPlainFile = exports.getVersionInputFromTomlFile = exports.parseToolVersionsFile = exports.getPythonVersionFromToolFile = exports.getOSInfo = exports.getLinuxInfo = exports.logWarning = exports.isCacheFeatureAvailable = exports.isGhes = exports.validatePythonVersionFormatForPyPy = exports.writeExactPyPyVersionFile = exports.readExactPyPyVersionFile = exports.getPyPyVersionFromPath = exports.isNightlyKeyword = exports.validateVersion = exports.createSymlinkInFolder = exports.parsePythonVersionFile = exports.WINDOWS_PLATFORMS = exports.WINDOWS_ARCHS = exports.IS_MAC = exports.IS_LINUX = exports.IS_WINDOWS = void 0;
 /* eslint no-unsafe-finally: "off" */
 const cache = __importStar(__nccwpck_require__(7799));
 const core = __importStar(__nccwpck_require__(2186));
@@ -100644,6 +100652,35 @@ function extractValue(obj, keys) {
         return;
     }
 }
+/**
+ * Reads the .tool-versions file and finds the version for Python.
+ * @returns {string[]} An array of version strings found in the .tool-versions file.
+ */
+function getPythonVersionFromToolFile() {
+    const toolVersionsFile = '.tool-versions';
+    if (fs_1.default.existsSync(toolVersionsFile)) {
+        const content = fs_1.default.readFileSync(toolVersionsFile, 'utf8');
+        return parseToolVersionsFile(content);
+    }
+    return [];
+}
+exports.getPythonVersionFromToolFile = getPythonVersionFromToolFile;
+/**
+ * Parse the .tool-versions file content using a regex for Python version.
+ * @param {string} content - Content of the .tool-versions file.
+ * @returns {string[]} An array of version strings found for Python.
+ */
+function parseToolVersionsFile(content) {
+    // Regex to find Python version entries in the format `python <version>`
+    const versionRegex = /^(?:python\s+)?v?(?<version>[^\s]+)$/m;
+    const versions = [];
+    let match;
+    while ((match = versionRegex.exec(content)) !== null) {
+        versions.push(match[1]);
+    }
+    return versions;
+}
+exports.parseToolVersionsFile = parseToolVersionsFile;
 /**
  * Python version extracted from the TOML file.
  * If the `project` key is present at the root level, the version is assumed to

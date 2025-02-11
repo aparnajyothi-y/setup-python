@@ -235,6 +235,35 @@ function extractValue(obj: any, keys: string[]): string | undefined {
 }
 
 /**
+ * Reads the .tool-versions file and finds the version for Python.
+ * @returns {string[]} An array of version strings found in the .tool-versions file.
+ */
+export function getPythonVersionFromToolFile(): string[] {
+  const toolVersionsFile = '.tool-versions';
+  if (fs.existsSync(toolVersionsFile)) {
+    const content = fs.readFileSync(toolVersionsFile, 'utf8');
+    return parseToolVersionsFile(content);
+  }
+  return [];
+}
+
+/**
+ * Parse the .tool-versions file content using a regex for Python version.
+ * @param {string} content - Content of the .tool-versions file.
+ * @returns {string[]} An array of version strings found for Python.
+ */
+export function parseToolVersionsFile(content: string): string[] {
+  // Regex to find Python version entries in the format `python <version>`
+  const versionRegex = /^(?:python\s+)?v?(?<version>[^\s]+)$/m;
+  const versions = [];
+  let match;
+  while ((match = versionRegex.exec(content)) !== null) {
+    versions.push(match[1]);
+  }
+  return versions;
+}
+
+/**
  * Python version extracted from the TOML file.
  * If the `project` key is present at the root level, the version is assumed to
  * be specified according to PEP 621 in `project.requires-python`.
