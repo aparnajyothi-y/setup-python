@@ -100702,7 +100702,7 @@ function parseToolVersionsFile(content) {
     core.debug('Reading .tool-versions file content:');
     core.debug(content); // Debug the entire content of the file
     let pythonVersion;
-    const versionRegex = /python\s+([^\s]+)/m;
+    const versionRegex = /^(?:python\s+)?v?(?<version>[^\s]+)$/m;
     const found = content.match(versionRegex);
     core.debug('Found version from regex:' + found);
     pythonVersion = (_a = found === null || found === void 0 ? void 0 : found.groups) === null || _a === void 0 ? void 0 : _a.version;
