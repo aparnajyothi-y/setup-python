@@ -77,20 +77,21 @@ function resolveVersionInput() {
       
       // Then try .tool-versions if .python-version is not available
       if (versions.length === 0) {
+        core.debug('No versions found in .python-version or python-version-file. Checking .tool-versions...');
         versions = getPythonVersionFromToolFile();
+        if (versions.length > 0) {
+          core.debug('Versions found in .tool-versions:');
+          core.debug(versions.join(', ')); // Debug the versions found in .tool-versions
+        } else {
+          core.warning('No Python versions found in .tool-versions.');
+        }
       }
     }
-  }
-  // Assuming you need to parse the version here
-  if (versions.length > 0) {
-    const version = parsePythonVersionFile(
-      fs.readFileSync(versionFile, 'utf8')
-    );
-    core.info(`Resolved ${versionFile} as ${version}`);
   }
 
   return versions;
 }
+
 
 async function run() {
   if (IS_MAC) {

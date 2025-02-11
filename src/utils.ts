@@ -253,15 +253,26 @@ export function getPythonVersionFromToolFile(): string[] {
  * @returns {string[]} An array of version strings found for Python.
  */
 export function parseToolVersionsFile(content: string): string[] {
-  // Regex to find Python version entries in the format `python <version>`
+  core.debug('Reading .tool-versions file content:');
+  core.debug(content); // Debug the entire content of the file
+  
   const versionRegex = /(?:python\s+)?(pypy\d+\.\d+(-v\d+\.\d+\.\d+)?|\d+\.\d+\.\d+)/g;
   const versions = [];
   let match;
+
   while ((match = versionRegex.exec(content)) !== null) {
+    // Log each match found
+    core.debug(`Found version match: ${match[1]}`); // match[1] is the actual version without the 'python' prefix
     versions.push(match[1]);
   }
+
+  if (versions.length === 0) {
+    core.warning('No versions found in .tool-versions file.');
+  }
+
   return versions;
 }
+
 
 /**
  * Python version extracted from the TOML file.

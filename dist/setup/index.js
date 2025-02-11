@@ -100353,14 +100353,17 @@ function resolveVersionInput() {
             versions = resolveVersionInputFromDefaultFile();
             // Then try .tool-versions if .python-version is not available
             if (versions.length === 0) {
+                core.debug('No versions found in .python-version or python-version-file. Checking .tool-versions...');
                 versions = (0, utils_1.getPythonVersionFromToolFile)();
+                if (versions.length > 0) {
+                    core.debug('Versions found in .tool-versions:');
+                    core.debug(versions.join(', ')); // Debug the versions found in .tool-versions
+                }
+                else {
+                    core.warning('No Python versions found in .tool-versions.');
+                }
             }
         }
-    }
-    // Assuming you need to parse the version here
-    if (versions.length > 0) {
-        const version = (0, utils_1.parsePythonVersionFile)(fs_1.default.readFileSync(versionFile, 'utf8'));
-        core.info(`Resolved ${versionFile} as ${version}`);
     }
     return versions;
 }
@@ -100671,12 +100674,18 @@ exports.getPythonVersionFromToolFile = getPythonVersionFromToolFile;
  * @returns {string[]} An array of version strings found for Python.
  */
 function parseToolVersionsFile(content) {
-    // Regex to find Python version entries in the format `python <version>`
+    core.debug('Reading .tool-versions file content:');
+    core.debug(content); // Debug the entire content of the file
     const versionRegex = /(?:python\s+)?(pypy\d+\.\d+(-v\d+\.\d+\.\d+)?|\d+\.\d+\.\d+)/g;
     const versions = [];
     let match;
     while ((match = versionRegex.exec(content)) !== null) {
+        // Log each match found
+        core.debug(`Found version match: ${match[1]}`); // match[1] is the actual version without the 'python' prefix
         versions.push(match[1]);
+    }
+    if (versions.length === 0) {
+        core.warning('No versions found in .tool-versions file.');
     }
     return versions;
 }
