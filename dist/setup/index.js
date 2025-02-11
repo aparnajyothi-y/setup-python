@@ -99387,8 +99387,11 @@ function findPyPyVersion(versionSpec, architecture, updateEnvironment, checkLate
         }
         ({ installDir, resolvedPythonVersion, resolvedPyPyVersion } = findPyPyToolCache(pypyVersionSpec.pythonVersion, pypyVersionSpec.pypyVersion, architecture));
         if (!installDir) {
-            ({ installDir, resolvedPythonVersion, resolvedPyPyVersion } =
-                yield pypyInstall.installPyPy(pypyVersionSpec.pypyVersion, pypyVersionSpec.pythonVersion, architecture, allowPreReleases, releases));
+            ({
+                installDir,
+                resolvedPythonVersion,
+                resolvedPyPyVersion
+            } = yield pypyInstall.installPyPy(pypyVersionSpec.pypyVersion, pypyVersionSpec.pythonVersion, architecture, allowPreReleases, releases));
         }
         const pipDir = utils_1.IS_WINDOWS ? 'Scripts' : 'bin';
         const _binDir = path.join(installDir, pipDir);
@@ -100349,6 +100352,8 @@ function resolveVersionInput() {
             versions = resolveVersionInputFromDefaultFile();
         }
     }
+    const version = (0, utils_1.parsePythonVersionFile)(fs_1.default.readFileSync(versionFile, 'utf8'));
+    core.info(`Resolved ${versionFile} as ${version}`);
     return versions;
 }
 function run() {
@@ -100453,7 +100458,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getDownloadFileName = exports.getNextPageUrl = exports.getBinaryDirectory = exports.getVersionInputFromFile = exports.getVersionInputFromPlainFile = exports.getVersionInputFromTomlFile = exports.getOSInfo = exports.getLinuxInfo = exports.logWarning = exports.isCacheFeatureAvailable = exports.isGhes = exports.validatePythonVersionFormatForPyPy = exports.writeExactPyPyVersionFile = exports.readExactPyPyVersionFile = exports.getPyPyVersionFromPath = exports.isNightlyKeyword = exports.validateVersion = exports.createSymlinkInFolder = exports.WINDOWS_PLATFORMS = exports.WINDOWS_ARCHS = exports.IS_MAC = exports.IS_LINUX = exports.IS_WINDOWS = void 0;
+exports.getDownloadFileName = exports.getNextPageUrl = exports.getBinaryDirectory = exports.getVersionInputFromFile = exports.getVersionInputFromPlainFile = exports.getVersionInputFromTomlFile = exports.getOSInfo = exports.getLinuxInfo = exports.logWarning = exports.isCacheFeatureAvailable = exports.isGhes = exports.validatePythonVersionFormatForPyPy = exports.writeExactPyPyVersionFile = exports.readExactPyPyVersionFile = exports.getPyPyVersionFromPath = exports.isNightlyKeyword = exports.validateVersion = exports.createSymlinkInFolder = exports.parsePythonVersionFile = exports.WINDOWS_PLATFORMS = exports.WINDOWS_ARCHS = exports.IS_MAC = exports.IS_LINUX = exports.IS_WINDOWS = void 0;
 /* eslint no-unsafe-finally: "off" */
 const cache = __importStar(__nccwpck_require__(7799));
 const core = __importStar(__nccwpck_require__(2186));
@@ -100468,6 +100473,20 @@ exports.IS_MAC = process.platform === 'darwin';
 exports.WINDOWS_ARCHS = ['x86', 'x64'];
 exports.WINDOWS_PLATFORMS = ['win32', 'win64'];
 const PYPY_VERSION_FILE = 'PYPY_VERSION';
+function parsePythonVersionFile(contents) {
+    var _a;
+    let pythonVersion;
+    // Try to find the version in tool-version file
+    const found = contents.match(/^(?:python\s+)?(pypy(?:3\.\d{1,2}|-\d{1,2}(?:-\d{1,2})?)(?:-v(?:\d+\.\d+\.\d+|v\d{1,2}\.\d{1,2}\.\d{1,2}|\dx|nightly|rc\d+))?)$/m);
+    pythonVersion = (_a = found === null || found === void 0 ? void 0 : found.groups) === null || _a === void 0 ? void 0 : _a.version;
+    // In the case of an unknown format,
+    // return as is and evaluate the version separately.
+    if (!pythonVersion) {
+        pythonVersion = contents.trim();
+    }
+    return pythonVersion;
+}
+exports.parsePythonVersionFile = parsePythonVersionFile;
 /** create Symlinks for downloaded PyPy
  *  It should be executed only for downloaded versions in runtime, because
  *  toolcache versions have this setup.

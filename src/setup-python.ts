@@ -8,10 +8,12 @@ import fs from 'fs';
 import {getCacheDistributor} from './cache-distributions/cache-factory';
 import {
   isCacheFeatureAvailable,
+  
   logWarning,
   IS_MAC,
   getVersionInputFromFile,
-  getVersionInputFromPlainFile
+  getVersionInputFromPlainFile,
+  parsePythonVersionFile
 } from './utils';
 
 function isPyPyVersion(versionSpec: string) {
@@ -72,6 +74,10 @@ function resolveVersionInput() {
       versions = resolveVersionInputFromDefaultFile();
     }
   }
+  const version = parsePythonVersionFile(
+    fs.readFileSync(versionFile, 'utf8')
+  );
+  core.info(`Resolved ${versionFile} as ${version}`);
 
   return versions;
 }

@@ -42,6 +42,21 @@ export interface IGraalPyManifestRelease {
   assets: IGraalPyManifestAsset[];
 }
 
+export function parsePythonVersionFile(contents: string): string {
+  let pythonVersion: string | undefined;
+
+  // Try to find the version in tool-version file
+  const found = contents.match(/^(?:python\s+)?(pypy(?:3\.\d{1,2}|-\d{1,2}(?:-\d{1,2})?)(?:-v(?:\d+\.\d+\.\d+|v\d{1,2}\.\d{1,2}\.\d{1,2}|\dx|nightly|rc\d+))?)$/m);
+  pythonVersion = found?.groups?.version;
+
+  // In the case of an unknown format,
+  // return as is and evaluate the version separately.
+  if (!pythonVersion) {
+    pythonVersion = contents.trim();
+  }
+
+  return pythonVersion as string;
+}
 /** create Symlinks for downloaded PyPy
  *  It should be executed only for downloaded versions in runtime, because
  *  toolcache versions have this setup.
