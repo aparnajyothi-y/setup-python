@@ -100477,7 +100477,7 @@ function parsePythonVersionFile(contents) {
     var _a;
     let pythonVersion;
     // Try to find the version in tool-version file
-    const found = contents.match(/^(?:python\s+)?(pypy(?:3\.\d{1,2}|-\d{1,2}(?:-\d{1,2})?)(?:-v(?:\d+\.\d+\.\d+|v\d{1,2}\.\d{1,2}\.\d{1,2}|\dx|nightly|rc\d+))?)$/m);
+    const found = contents.match(/^(pypy(?:3\.\d{1,2})?)(?:-(v(?:\d+\.\d+\.\d+|nightly|rc\d+|x)))?$/m);
     pythonVersion = (_a = found === null || found === void 0 ? void 0 : found.groups) === null || _a === void 0 ? void 0 : _a.version;
     // In the case of an unknown format,
     // return as is and evaluate the version separately.
