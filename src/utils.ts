@@ -297,20 +297,19 @@ export function getVersionInputFromPlainFile(versionFile: string): string[] {
 export function parseToolVersionsFile(content: string): string[] {
   core.debug('Reading .tool-versions file content:');
   core.debug(content); // Debug the entire content of the file
-  
-  const versionRegex = /^(?<!^python\s+)(pypy(?:3\.\d{1,2})?)(?:-(v(?:\d+\.\d+\.\d+|nightly|rc\d+|x)))?$/m;
-  const versions = [];
-  let match;
+  let pythonVersion: string | undefined;
+  const versionRegex = /^(?:python\s+)?:-v?(?:<version>[^\s]+)$/m;
+  const found = content.match(versionRegex);
 
-  while ((match = versionRegex.exec(content)) !== null) {
-    // Log each match found
-    core.debug(`Found version match: ${match[1]}`); // match[1] is the actual version without the 'python' prefix
-    versions.push(match[1]);
+  pythonVersion = found?.groups?.version;
+  core.debug('Found version:'+ pythonVersion);
+  // In the case of an unknown format,
+  // return as is and evaluate the version separately.
+  if (!pythonVersion) {
+    pythonVersion = content.trim();
   }
 
-  
-
-  return versions;
+  return [pythonVersion as string];
 }
 
 /**
