@@ -100672,7 +100672,7 @@ exports.getPythonVersionFromToolFile = getPythonVersionFromToolFile;
  */
 function parseToolVersionsFile(content) {
     // Regex to find Python version entries in the format `python <version>`
-    const versionRegex = /^(?:python\s+)?v?(?<version>[^\s]+)$/m;
+    const versionRegex = /(?:python\s+)?(pypy\d+\.\d+(-v\d+\.\d+\.\d+)?|\d+\.\d+\.\d+)/g;
     const versions = [];
     let match;
     while ((match = versionRegex.exec(content)) !== null) {
