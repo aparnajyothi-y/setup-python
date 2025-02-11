@@ -42,21 +42,6 @@ export interface IGraalPyManifestRelease {
   assets: IGraalPyManifestAsset[];
 }
 
-export function parsePythonVersionFile(contents: string): string {
-  let pythonVersion: string | undefined;
-
-  // Try to find the version in tool-version file
-  const found = contents.match(/^(?:python\s+)?(pypy(?:3\.\d{1,2})?[-\.]?(?:\d{1,2}\.\d{1,2}\.\d{1,2}|nightly|rc\d+|x|v\d+))?$/m);
-  pythonVersion = found?.groups?.version;
-
-  // In the case of an unknown format,
-  // return as is and evaluate the version separately.
-  if (!pythonVersion) {
-    pythonVersion = contents.trim();
-  }
-
-  return pythonVersion as string;
-}
 /** create Symlinks for downloaded PyPy
  *  It should be executed only for downloaded versions in runtime, because
  *  toolcache versions have this setup.
@@ -235,46 +220,6 @@ function extractValue(obj: any, keys: string[]): string | undefined {
 }
 
 /**
- * Reads the .tool-versions file and finds the version for Python.
- * @returns {string[]} An array of version strings found in the .tool-versions file.
- */
-export function getPythonVersionFromToolFile(): string[] {
-  const toolVersionsFile = '.tool-versions';
-  if (fs.existsSync(toolVersionsFile)) {
-    const content = fs.readFileSync(toolVersionsFile, 'utf8');
-    return parseToolVersionsFile(content);
-  }
-  return [];
-}
-
-/**
- * Parse the .tool-versions file content using a regex for Python version.
- * @param {string} content - Content of the .tool-versions file.
- * @returns {string[]} An array of version strings found for Python.
- */
-export function parseToolVersionsFile(content: string): string[] {
-  core.debug('Reading .tool-versions file content:');
-  core.debug(content); // Debug the entire content of the file
-  
-  const versionRegex = /(?:python\s+)?(pypy\d+\.\d+(-v\d+\.\d+\.\d+)?|\d+\.\d+\.\d+)/g;
-  const versions = [];
-  let match;
-
-  while ((match = versionRegex.exec(content)) !== null) {
-    // Log each match found
-    core.debug(`Found version match: ${match[1]}`); // match[1] is the actual version without the 'python' prefix
-    versions.push(match[1]);
-  }
-
-  if (versions.length === 0) {
-    core.warning('No versions found in .tool-versions file.');
-  }
-
-  return versions;
-}
-
-
-/**
  * Python version extracted from the TOML file.
  * If the `project` key is present at the root level, the version is assumed to
  * be specified according to PEP 621 in `project.requires-python`.
@@ -323,6 +268,22 @@ export function getVersionInputFromTomlFile(versionFile: string): string[] {
   return validatedVersions;
 }
 
+export function getPythonVersionFromToolFile(versionFile: string): string[] {
+  const toolVersionsFile = versionFile;
+  if (fs.existsSync(toolVersionsFile)) {
+    core.debug(`Found .tool-versions file at: ${toolVersionsFile}`);
+    const content = fs.readFileSync(toolVersionsFile, 'utf8');
+    
+    // Debug the content of the file being read
+    core.debug('Content of .tool-versions file:');
+    core.debug(content);
+    
+    return parseToolVersionsFile(content);
+  } else {
+    core.warning('.tool-versions file not found.');
+  }
+  return [];
+}
 /**
  * Python version extracted from a plain text file.
  */
@@ -333,12 +294,37 @@ export function getVersionInputFromPlainFile(versionFile: string): string[] {
   return [version];
 }
 
+export function parseToolVersionsFile(content: string): string[] {
+  core.debug('Reading .tool-versions file content:');
+  core.debug(content); // Debug the entire content of the file
+  
+  const versionRegex = /^(?<!^python\s+)(pypy(?:3\.\d{1,2})?)(?:-(v(?:\d+\.\d+\.\d+|nightly|rc\d+|x)))?$/m;
+  const versions = [];
+  let match;
+
+  while ((match = versionRegex.exec(content)) !== null) {
+    // Log each match found
+    core.debug(`Found version match: ${match[1]}`); // match[1] is the actual version without the 'python' prefix
+    versions.push(match[1]);
+  }
+
+  if (versions.length === 0) {
+    core.warning('No versions found in .tool-versions file.');
+  }
+
+  return versions;
+}
+
 /**
  * Python version extracted from a plain or TOML file.
  */
 export function getVersionInputFromFile(versionFile: string): string[] {
   if (versionFile.endsWith('.toml')) {
     return getVersionInputFromTomlFile(versionFile);
+  }else if(versionFile == '.tool-versions') {
+    
+      return getPythonVersionFromToolFile(versionFile);
+    
   } else {
     return getVersionInputFromPlainFile(versionFile);
   }

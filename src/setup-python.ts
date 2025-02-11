@@ -8,13 +8,10 @@ import fs from 'fs';
 import {getCacheDistributor} from './cache-distributions/cache-factory';
 import {
   isCacheFeatureAvailable,
-  
   logWarning,
   IS_MAC,
   getVersionInputFromFile,
-  getVersionInputFromPlainFile,
-  parsePythonVersionFile,
-  getPythonVersionFromToolFile
+  getVersionInputFromPlainFile
 } from './utils';
 
 function isPyPyVersion(versionSpec: string) {
@@ -65,38 +62,19 @@ function resolveVersionInput() {
     }
   } else {
     if (versionFile) {
-      // Validate if the python-version-file exists
       if (!fs.existsSync(versionFile)) {
         throw new Error(
           `The specified python version file at: ${versionFile} doesn't exist.`
         );
       }
-      
-      // If versionFile exists, extract versions from it
       versions = getVersionInputFromFile(versionFile);
-      core.debug('Versions found in python-version-file:');
-      core.debug(versions.join(', ')); // Debug the versions found in the version file
-
-      // After extracting from versionFile, proceed to check the .tool-versions file if needed
-      if (versions.length === 0) {
-        core.debug('No versions found in the python-version-file. Checking .tool-versions...');
-        versions = getPythonVersionFromToolFile();
-        if (versions.length > 0) {
-          core.debug('Versions found in .tool-versions:');
-          core.debug(versions.join(', ')); // Debug the versions found in .tool-versions
-        } else {
-          core.warning('No Python versions found in .tool-versions.');
-        }
-      }
     } else {
-      // If no python-version-file is provided, try the default flow (e.g., .python-version)
       versions = resolveVersionInputFromDefaultFile();
     }
   }
 
   return versions;
 }
-
 
 async function run() {
   if (IS_MAC) {
