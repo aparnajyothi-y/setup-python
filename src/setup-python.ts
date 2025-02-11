@@ -67,6 +67,7 @@ function resolveVersionInput() {
           `The specified python version file at: ${versionFile} doesn't exist.`
         );
       }
+      core.debug(`Reading python version from ${versionFile}`);
       versions = getVersionInputFromFile(versionFile);
     } else {
       versions = resolveVersionInputFromDefaultFile();
