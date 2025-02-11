@@ -100671,11 +100671,12 @@ function getVersionInputFromTomlFile(versionFile) {
 exports.getVersionInputFromTomlFile = getVersionInputFromTomlFile;
 function getPythonVersionFromToolFile(versionFile) {
     const toolVersionsFile = versionFile;
+    core.debug(`Trying to resolve version form ${toolVersionsFile}`);
     if (fs_1.default.existsSync(toolVersionsFile)) {
-        core.debug(`Found .tool-versions file at: ${toolVersionsFile}`);
+        core.debug(`Found .tool-versions file`);
         const content = fs_1.default.readFileSync(toolVersionsFile, 'utf8');
         // Debug the content of the file being read
-        core.debug('Content of .tool-versions file:');
+        core.debug('Content of .tool-versions file:' + content);
         core.debug(content);
         return parseToolVersionsFile(content);
     }
@@ -100702,6 +100703,7 @@ function parseToolVersionsFile(content) {
     let pythonVersion;
     const versionRegex = /^(?:python\s+)?:-v?(?:<version>[^\s]+)$/m;
     const found = content.match(versionRegex);
+    core.debug('Found version from regex:' + found);
     pythonVersion = (_a = found === null || found === void 0 ? void 0 : found.groups) === null || _a === void 0 ? void 0 : _a.version;
     core.debug('Found version:' + pythonVersion);
     // In the case of an unknown format,
@@ -100720,6 +100722,7 @@ function getVersionInputFromFile(versionFile) {
         return getVersionInputFromTomlFile(versionFile);
     }
     else if (versionFile == '.tool-versions') {
+        core.debug('Reading .tool-versions file');
         return getPythonVersionFromToolFile(versionFile);
     }
     else {
