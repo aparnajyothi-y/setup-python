@@ -308,9 +308,7 @@ export function parseToolVersionsFile(content: string): string[] {
     versions.push(match[1]);
   }
 
-  if (versions.length === 0) {
-    core.warning('No versions found in .tool-versions file.');
-  }
+  
 
   return versions;
 }

@@ -100706,9 +100706,6 @@ function parseToolVersionsFile(content) {
         core.debug(`Found version match: ${match[1]}`); // match[1] is the actual version without the 'python' prefix
         versions.push(match[1]);
     }
-    if (versions.length === 0) {
-        core.warning('No versions found in .tool-versions file.');
-    }
     return versions;
 }
 exports.parseToolVersionsFile = parseToolVersionsFile;
