@@ -99625,7 +99625,7 @@ function useCpythonVersion(version, architecture, updateEnvironment, checkLatest
                 const major = semver.major(version);
                 const minor = semver.minor(version);
                 if (architecture === 'x86' &&
-                    (major > 3 || (major === 3 && minor >= 10))) {
+                    (major > 3 || (major === 3 && minor >= 10) && !version.includes('t'))) {
                     // For Python >= 3.10 and architecture= 'x86', add the architecture-specific folder to the path
                     const arch = '32';
                     const userScriptsDir = path.join(process.env['APPDATA'] || '', 'Python', `Python${major}${minor}-${arch}`, 'Scripts');
