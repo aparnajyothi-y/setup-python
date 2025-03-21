@@ -152,19 +152,14 @@ export async function useCpythonVersion(
 
     if (IS_WINDOWS) {
       // Add --user directory
-      // `installDir` from tool cache should look like $RUNNER_TOOL_CACHE/Python/<semantic version>/x64/
-      // So if `findLocalTool` succeeded above, we must have a conformant `installDir`
       const version = path.basename(path.dirname(installDir));
       const major = semver.major(version);
       const minor = semver.minor(version);
-
-      if (
-        architecture === 'x86' &&
-        (major > 3 || (major === 3 && minor >= 10) )
-      ) {
-        // For Python >= 3.10 and architecture= 'x86', add the architecture-specific folder to the path
-        const arch = '32';
-
+    
+      if (architecture === 'x86' && (major > 3 || (major === 3 && minor >= 10))) {
+        // For Python >= 3.10 and architecture='x86', add the architecture-specific folder to the path
+        const arch = '32'; // Only for x86 architecture
+    
         const userScriptsDir = path.join(
           process.env['APPDATA'] || '',
           'Python',
@@ -172,8 +167,8 @@ export async function useCpythonVersion(
           'Scripts'
         );
         core.addPath(userScriptsDir);
-      } else if (architecture === 'x64') {
-        // For x64 architecture, don't append -32 (no need for changes)
+      } else {
+        // For Python >= 3.10 and architecture 'x64', or other versions, use the default user path
         const userScriptsDir = path.join(
           process.env['APPDATA'] || '',
           'Python',
@@ -182,7 +177,17 @@ export async function useCpythonVersion(
         );
         core.addPath(userScriptsDir);
       }
-    }
+    
+    
+      // Dynamically handle case for Python314t
+      const pythonPath = path.join(
+        process.env['APPDATA'] || '',
+        'Python',
+        `Python${major}${minor}t`,
+        'Scripts'
+      );
+        core.addPath(pythonPath);
+    }   
     // On Linux and macOS, pip will create the --user directory and add it to PATH as needed.
   }
 
