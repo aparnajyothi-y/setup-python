@@ -25,6 +25,22 @@ function isGraalPyVersion(versionSpec: string) {
 async function cacheDependencies(cache: string, pythonVersion: string) {
   const cacheDependencyPath =
     core.getInput('cache-dependency-path') || undefined;
+    let resolvedDependencyPath: string | undefined = undefined;
+
+  if (cacheDependencyPath) {
+    if (path.isAbsolute(cacheDependencyPath)) {
+      resolvedDependencyPath = cacheDependencyPath;
+    } else {
+      const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
+      resolvedDependencyPath = path.resolve(workspace, cacheDependencyPath);
+    }
+
+    if (!fs.existsSync(resolvedDependencyPath)) {
+      core.warning(`The resolved cache-dependency-path does not exist: ${resolvedDependencyPath}`);
+    }
+
+    core.info(`Resolved cache-dependency-path: ${resolvedDependencyPath}`);
+  }
   const cacheDistributor = getCacheDistributor(
     cache,
     pythonVersion,
