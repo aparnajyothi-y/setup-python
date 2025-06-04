@@ -97645,15 +97645,25 @@ function cacheDependencies(cache, pythonVersion) {
         let resolvedDependencyPath = undefined;
         if (cacheDependencyPath) {
             const actionPath = process.env.GITHUB_ACTION_PATH || '';
-            const absolutePath = path.resolve(actionPath, cacheDependencyPath);
-            const normalizedPath = path.normalize(absolutePath);
-            if (!fs_1.default.existsSync(normalizedPath)) {
-                core.warning(`The resolved cache-dependency-path does not exist: ${normalizedPath}`);
+            const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
+            const sourcePath = path.resolve(actionPath, cacheDependencyPath);
+            const targetPath = path.resolve(workspace, path.basename(cacheDependencyPath));
+            if (!fs_1.default.existsSync(sourcePath)) {
+                core.warning(`The resolved cache-dependency-path does not exist: ${sourcePath}`);
             }
-            core.info(`Resolved cache-dependency-path: ${normalizedPath}`);
-            resolvedDependencyPath = normalizedPath;
+            else {
+                try {
+                    fs_1.default.copyFileSync(sourcePath, targetPath);
+                    core.info(`Copied ${sourcePath} to ${targetPath}`);
+                }
+                catch (error) {
+                    core.warning(`Failed to copy file from ${sourcePath} to ${targetPath}: ${error}`);
+                }
+            }
+            resolvedDependencyPath = path.relative(workspace, targetPath);
+            core.info(`Resolved cache-dependency-path: ${resolvedDependencyPath}`);
         }
-        const cacheDistributor = (0, cache_factory_1.getCacheDistributor)(cache, pythonVersion, cacheDependencyPath);
+        const cacheDistributor = (0, cache_factory_1.getCacheDistributor)(cache, pythonVersion, resolvedDependencyPath);
         yield cacheDistributor.restoreCache();
     });
 }
