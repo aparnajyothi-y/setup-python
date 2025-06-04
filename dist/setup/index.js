@@ -97643,23 +97643,27 @@ function cacheDependencies(cache, pythonVersion) {
     return __awaiter(this, void 0, void 0, function* () {
         const cacheDependencyPath = core.getInput('cache-dependency-path') || undefined;
         let resolvedDependencyPath = undefined;
+        const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
         if (cacheDependencyPath) {
-            const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
-            // Resolve full absolute path
+            // Resolve the absolute path
             const absolutePath = path.resolve(workspace, cacheDependencyPath);
-            // Ensure the resolved path is inside the workspace
+            // Ensure the path is within the workspace
             if (!absolutePath.startsWith(workspace)) {
                 core.setFailed(`Resolved path is outside of the workspace: ${absolutePath}`);
                 return;
             }
-            // Create a workspace-relative path (POSIX format)
+            // Convert to a relative path and normalize
             resolvedDependencyPath = path.relative(workspace, absolutePath).replace(/\\/g, '/');
-            // Warn if file doesn't exist
-            const fullPath = path.join(workspace, resolvedDependencyPath);
-            if (!fs_1.default.existsSync(fullPath)) {
-                core.warning(`The resolved cache-dependency-path does not exist: ${fullPath}`);
+            // Check for invalid patterns
+            if (resolvedDependencyPath.includes('..') || resolvedDependencyPath.startsWith('.')) {
+                core.setFailed(`Invalid relative cache-dependency-path: ${resolvedDependencyPath}`);
+                return;
             }
-            core.info(`Resolved cache-dependency-path (relative): ${resolvedDependencyPath}`);
+            // Warn if the file does not exist
+            if (!fs_1.default.existsSync(absolutePath)) {
+                core.warning(`The resolved cache-dependency-path does not exist: ${absolutePath}`);
+            }
+            core.info(`Resolved cache-dependency-path: ${resolvedDependencyPath}`);
         }
         const cacheDistributor = (0, cache_factory_1.getCacheDistributor)(cache, pythonVersion, cacheDependencyPath);
         yield cacheDistributor.restoreCache();

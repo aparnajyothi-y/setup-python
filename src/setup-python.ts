@@ -27,30 +27,34 @@ async function cacheDependencies(cache: string, pythonVersion: string) {
     core.getInput('cache-dependency-path') || undefined;
     let resolvedDependencyPath: string | undefined = undefined;
 
-    if (cacheDependencyPath) {
-      const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
-    
-      // Resolve full absolute path
-      const absolutePath = path.resolve(workspace, cacheDependencyPath);
-    
-      // Ensure the resolved path is inside the workspace
-      if (!absolutePath.startsWith(workspace)) {
-        core.setFailed(`Resolved path is outside of the workspace: ${absolutePath}`);
-        return;
-      }
-    
-      // Create a workspace-relative path (POSIX format)
-      resolvedDependencyPath = path.relative(workspace, absolutePath).replace(/\\/g, '/');
-    
-      // Warn if file doesn't exist
-      const fullPath = path.join(workspace, resolvedDependencyPath);
-      if (!fs.existsSync(fullPath)) {
-        core.warning(`The resolved cache-dependency-path does not exist: ${fullPath}`);
-      }
-    
-      core.info(`Resolved cache-dependency-path (relative): ${resolvedDependencyPath}`);
-    }
-    
+    const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
+
+if (cacheDependencyPath) {
+  // Resolve the absolute path
+  const absolutePath = path.resolve(workspace, cacheDependencyPath);
+
+  // Ensure the path is within the workspace
+  if (!absolutePath.startsWith(workspace)) {
+    core.setFailed(`Resolved path is outside of the workspace: ${absolutePath}`);
+    return;
+  }
+
+  // Convert to a relative path and normalize
+  resolvedDependencyPath = path.relative(workspace, absolutePath).replace(/\\/g, '/');
+
+  // Check for invalid patterns
+  if (resolvedDependencyPath.includes('..') || resolvedDependencyPath.startsWith('.')) {
+    core.setFailed(`Invalid relative cache-dependency-path: ${resolvedDependencyPath}`);
+    return;
+  }
+
+  // Warn if the file does not exist
+  if (!fs.existsSync(absolutePath)) {
+    core.warning(`The resolved cache-dependency-path does not exist: ${absolutePath}`);
+  }
+
+  core.info(`Resolved cache-dependency-path: ${resolvedDependencyPath}`);
+}
   const cacheDistributor = getCacheDistributor(
     cache,
     pythonVersion,
