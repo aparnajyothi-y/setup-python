@@ -97643,20 +97643,16 @@ function cacheDependencies(cache, pythonVersion) {
     return __awaiter(this, void 0, void 0, function* () {
         const cacheDependencyPath = core.getInput('cache-dependency-path') || undefined;
         let resolvedDependencyPath = undefined;
-        const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
         if (cacheDependencyPath) {
-            // Resolve the absolute path
-            const absolutePath = path.resolve(workspace, cacheDependencyPath);
-            // Ensure the path is within the workspace
-            if (!absolutePath.startsWith(workspace)) {
-                core.setFailed(`Resolved path is outside of the workspace: ${absolutePath}`);
-                return;
+            if (path.isAbsolute(cacheDependencyPath)) {
+                resolvedDependencyPath = cacheDependencyPath;
             }
-            // Convert to a relative path and normalize
-            resolvedDependencyPath = path.relative(workspace, absolutePath).replace(/\\/g, '/');
-            // Warn if the file does not exist
-            if (!fs_1.default.existsSync(absolutePath)) {
-                core.warning(`The resolved cache-dependency-path does not exist: ${absolutePath}`);
+            else {
+                const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
+                resolvedDependencyPath = path.resolve(workspace, cacheDependencyPath);
+            }
+            if (!fs_1.default.existsSync(resolvedDependencyPath)) {
+                core.warning(`The resolved cache-dependency-path does not exist: ${resolvedDependencyPath}`);
             }
             core.info(`Resolved cache-dependency-path: ${resolvedDependencyPath}`);
         }

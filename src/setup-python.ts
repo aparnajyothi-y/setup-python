@@ -27,30 +27,20 @@ async function cacheDependencies(cache: string, pythonVersion: string) {
     core.getInput('cache-dependency-path') || undefined;
     let resolvedDependencyPath: string | undefined = undefined;
 
-    const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
+  if (cacheDependencyPath) {
+    if (path.isAbsolute(cacheDependencyPath)) {
+      resolvedDependencyPath = cacheDependencyPath;
+    } else {
+      const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
+      resolvedDependencyPath = path.resolve(workspace, cacheDependencyPath);
+    }
 
-if (cacheDependencyPath) {
-  // Resolve the absolute path
-  const absolutePath = path.resolve(workspace, cacheDependencyPath);
+    if (!fs.existsSync(resolvedDependencyPath)) {
+      core.warning(`The resolved cache-dependency-path does not exist: ${resolvedDependencyPath}`);
+    }
 
-  // Ensure the path is within the workspace
-  if (!absolutePath.startsWith(workspace)) {
-    core.setFailed(`Resolved path is outside of the workspace: ${absolutePath}`);
-    return;
+    core.info(`Resolved cache-dependency-path: ${resolvedDependencyPath}`);
   }
-
-  // Convert to a relative path and normalize
-  resolvedDependencyPath = path.relative(workspace, absolutePath).replace(/\\/g, '/');
-
- 
-
-  // Warn if the file does not exist
-  if (!fs.existsSync(absolutePath)) {
-    core.warning(`The resolved cache-dependency-path does not exist: ${absolutePath}`);
-  }
-
-  core.info(`Resolved cache-dependency-path: ${resolvedDependencyPath}`);
-}
   const cacheDistributor = getCacheDistributor(
     cache,
     pythonVersion,
