@@ -29,10 +29,10 @@ async function cacheDependencies(cache: string, pythonVersion: string) {
 
   if (cacheDependencyPath) {
     if (path.isAbsolute(cacheDependencyPath)) {
-      resolvedDependencyPath = cacheDependencyPath;
+      resolvedDependencyPath = path.normalize(cacheDependencyPath);
     } else {
       const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
-      resolvedDependencyPath = path.resolve(workspace, cacheDependencyPath);
+      resolvedDependencyPath = path.normalize(path.resolve(workspace, cacheDependencyPath));
     }
 
     if (!fs.existsSync(resolvedDependencyPath)) {

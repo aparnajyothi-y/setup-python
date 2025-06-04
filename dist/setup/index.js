@@ -97645,11 +97645,11 @@ function cacheDependencies(cache, pythonVersion) {
         let resolvedDependencyPath = undefined;
         if (cacheDependencyPath) {
             if (path.isAbsolute(cacheDependencyPath)) {
-                resolvedDependencyPath = cacheDependencyPath;
+                resolvedDependencyPath = path.normalize(cacheDependencyPath);
             }
             else {
                 const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
-                resolvedDependencyPath = path.resolve(workspace, cacheDependencyPath);
+                resolvedDependencyPath = path.normalize(path.resolve(workspace, cacheDependencyPath));
             }
             if (!fs_1.default.existsSync(resolvedDependencyPath)) {
                 core.warning(`The resolved cache-dependency-path does not exist: ${resolvedDependencyPath}`);
