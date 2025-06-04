@@ -97654,11 +97654,6 @@ function cacheDependencies(cache, pythonVersion) {
             }
             // Convert to a relative path and normalize
             resolvedDependencyPath = path.relative(workspace, absolutePath).replace(/\\/g, '/');
-            // Check for invalid patterns
-            if (resolvedDependencyPath.includes('..') || resolvedDependencyPath.startsWith('.')) {
-                core.setFailed(`Invalid relative cache-dependency-path: ${resolvedDependencyPath}`);
-                return;
-            }
             // Warn if the file does not exist
             if (!fs_1.default.existsSync(absolutePath)) {
                 core.warning(`The resolved cache-dependency-path does not exist: ${absolutePath}`);

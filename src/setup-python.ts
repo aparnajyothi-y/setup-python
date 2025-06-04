@@ -42,11 +42,7 @@ if (cacheDependencyPath) {
   // Convert to a relative path and normalize
   resolvedDependencyPath = path.relative(workspace, absolutePath).replace(/\\/g, '/');
 
-  // Check for invalid patterns
-  if (resolvedDependencyPath.includes('..') || resolvedDependencyPath.startsWith('.')) {
-    core.setFailed(`Invalid relative cache-dependency-path: ${resolvedDependencyPath}`);
-    return;
-  }
+ 
 
   // Warn if the file does not exist
   if (!fs.existsSync(absolutePath)) {
