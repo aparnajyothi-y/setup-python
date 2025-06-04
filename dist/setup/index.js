@@ -96923,6 +96923,7 @@ function isGraalPyVersion(versionSpec) {
 function cacheDependencies(cache, pythonVersion) {
     return __awaiter(this, void 0, void 0, function* () {
         const cacheDependencyPath = core.getInput('cache-dependency-path') || undefined;
+        core.info(`Resolved cache-dependency-path: ${cacheDependencyPath}`);
         const cacheDistributor = (0, cache_factory_1.getCacheDistributor)(cache, pythonVersion, cacheDependencyPath);
         yield cacheDistributor.restoreCache();
     });

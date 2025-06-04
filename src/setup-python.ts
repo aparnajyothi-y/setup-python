@@ -25,6 +25,9 @@ function isGraalPyVersion(versionSpec: string) {
 async function cacheDependencies(cache: string, pythonVersion: string) {
   const cacheDependencyPath =
     core.getInput('cache-dependency-path') || undefined;
+
+
+    core.info(`Resolved cache-dependency-path: ${cacheDependencyPath}`);
   const cacheDistributor = getCacheDistributor(
     cache,
     pythonVersion,
