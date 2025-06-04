@@ -97644,17 +97644,14 @@ function cacheDependencies(cache, pythonVersion) {
         const cacheDependencyPath = core.getInput('cache-dependency-path') || undefined;
         let resolvedDependencyPath = undefined;
         if (cacheDependencyPath) {
-            if (path.isAbsolute(cacheDependencyPath)) {
-                resolvedDependencyPath = cacheDependencyPath;
+            const actionPath = process.env.GITHUB_ACTION_PATH || '';
+            const absolutePath = path.resolve(actionPath, cacheDependencyPath);
+            const normalizedPath = path.normalize(absolutePath);
+            if (!fs_1.default.existsSync(normalizedPath)) {
+                core.warning(`The resolved cache-dependency-path does not exist: ${normalizedPath}`);
             }
-            else {
-                const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
-                resolvedDependencyPath = path.resolve(workspace, cacheDependencyPath);
-            }
-            if (!fs_1.default.existsSync(resolvedDependencyPath)) {
-                core.warning(`The resolved cache-dependency-path does not exist: ${resolvedDependencyPath}`);
-            }
-            core.info(`Resolved cache-dependency-path: ${resolvedDependencyPath}`);
+            core.info(`Resolved cache-dependency-path: ${normalizedPath}`);
+            resolvedDependencyPath = normalizedPath;
         }
         const cacheDistributor = (0, cache_factory_1.getCacheDistributor)(cache, pythonVersion, cacheDependencyPath);
         yield cacheDistributor.restoreCache();
