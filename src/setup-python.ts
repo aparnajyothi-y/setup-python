@@ -27,31 +27,29 @@ async function cacheDependencies(cache: string, pythonVersion: string) {
     core.getInput('cache-dependency-path') || undefined;
     let resolvedDependencyPath: string | undefined = undefined;
 
-    const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
-if (cacheDependencyPath) {
-  const absPath = path.isAbsolute(cacheDependencyPath)
-    ? path.normalize(cacheDependencyPath)
-    : path.resolve(workspace, cacheDependencyPath);
-
-  if (!absPath.startsWith(workspace)) {
-    core.warning(`cache-dependency-path resolves outside of workspace: ${absPath}`);
-  }
-
-  const relPath = path.relative(workspace, absPath).replace(/\\/g, '/');
-
-  if (relPath.includes('..') || relPath.startsWith('.')) {
-    core.setFailed(`Invalid relative cache-dependency-path: ${relPath}`);
-  }
-
-  resolvedDependencyPath = relPath;
-
-  if (!fs.existsSync(absPath)) {
-    core.warning(`The resolved cache-dependency-path does not exist: ${absPath}`);
-  }
-
-  core.info(`Resolved cache-dependency-path: ${relPath}`);
-}
-
+    if (cacheDependencyPath) {
+      const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
+    
+      // Resolve full absolute path
+      const absolutePath = path.resolve(workspace, cacheDependencyPath);
+    
+      // Ensure the resolved path is inside the workspace
+      if (!absolutePath.startsWith(workspace)) {
+        core.setFailed(`Resolved path is outside of the workspace: ${absolutePath}`);
+        return;
+      }
+    
+      // Create a workspace-relative path (POSIX format)
+      resolvedDependencyPath = path.relative(workspace, absolutePath).replace(/\\/g, '/');
+    
+      // Warn if file doesn't exist
+      const fullPath = path.join(workspace, resolvedDependencyPath);
+      if (!fs.existsSync(fullPath)) {
+        core.warning(`The resolved cache-dependency-path does not exist: ${fullPath}`);
+      }
+    
+      core.info(`Resolved cache-dependency-path (relative): ${resolvedDependencyPath}`);
+    }
     
   const cacheDistributor = getCacheDistributor(
     cache,
