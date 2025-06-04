@@ -97644,17 +97644,22 @@ function cacheDependencies(cache, pythonVersion) {
         const cacheDependencyPath = core.getInput('cache-dependency-path') || undefined;
         let resolvedDependencyPath = undefined;
         if (cacheDependencyPath) {
-            if (path.isAbsolute(cacheDependencyPath)) {
-                resolvedDependencyPath = path.normalize(cacheDependencyPath);
+            const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
+            // Resolve full absolute path
+            const absolutePath = path.resolve(workspace, cacheDependencyPath);
+            // Ensure the resolved path is inside the workspace
+            if (!absolutePath.startsWith(workspace)) {
+                core.setFailed(`Resolved path is outside of the workspace: ${absolutePath}`);
+                return;
             }
-            else {
-                const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
-                resolvedDependencyPath = path.normalize(path.resolve(workspace, cacheDependencyPath));
+            // Create a workspace-relative path (POSIX format)
+            resolvedDependencyPath = path.relative(workspace, absolutePath).replace(/\\/g, '/');
+            // Warn if file doesn't exist
+            const fullPath = path.join(workspace, resolvedDependencyPath);
+            if (!fs_1.default.existsSync(fullPath)) {
+                core.warning(`The resolved cache-dependency-path does not exist: ${fullPath}`);
             }
-            if (!fs_1.default.existsSync(resolvedDependencyPath)) {
-                core.warning(`The resolved cache-dependency-path does not exist: ${resolvedDependencyPath}`);
-            }
-            core.info(`Resolved cache-dependency-path: ${resolvedDependencyPath}`);
+            core.info(`Resolved cache-dependency-path (relative): ${resolvedDependencyPath}`);
         }
         const cacheDistributor = (0, cache_factory_1.getCacheDistributor)(cache, pythonVersion, cacheDependencyPath);
         yield cacheDistributor.restoreCache();
