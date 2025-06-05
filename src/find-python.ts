@@ -49,17 +49,20 @@ export async function useCpythonVersion(
     // Use the freethreaded version if it was specified in the input, e.g., 3.13t
     freethreaded = true;
   }
-  core.debug(`Semantic version spec of ${version} is ${semanticVersionSpec}`);
-  if (freethreaded) {
-    const supportedArchs = ['x64', 'arm64','x86']; // example, adjust based on real support
-  if (!supportedArchs.includes(architecture)) {
+  if (architecture.endsWith('-freethreaded')) {
     throw new Error(
-      `Unsupported architecture '${architecture}' for free-threaded Python versions. Supported architectures are: ${supportedArchs.join(', ')}`
+      `Invalid architecture '${architecture}'. Use 'freethreaded' flag in the python-version (e.g., '3.13.1t') instead of specifying '-freethreaded' in the architecture.`
     );
   }
+  core.debug(`Semantic version spec of ${version} is ${semanticVersionSpec}`);
+  if (freethreaded) {
+    
+
+  
     // Free threaded versions use an architecture suffix like `x64-freethreaded`
     core.debug(`Using freethreaded version of ${semanticVersionSpec}`);
     architecture += '-freethreaded';
+  
   }
 
   if (checkLatest) {
