@@ -51,6 +51,12 @@ export async function useCpythonVersion(
   }
   core.debug(`Semantic version spec of ${version} is ${semanticVersionSpec}`);
   if (freethreaded) {
+    const supportedArchs = ['x64', 'arm64','x86']; // example, adjust based on real support
+  if (!supportedArchs.includes(architecture)) {
+    throw new Error(
+      `Unsupported architecture '${architecture}' for free-threaded Python versions. Supported architectures are: ${supportedArchs.join(', ')}`
+    );
+  }
     // Free threaded versions use an architecture suffix like `x64-freethreaded`
     core.debug(`Using freethreaded version of ${semanticVersionSpec}`);
     architecture += '-freethreaded';
