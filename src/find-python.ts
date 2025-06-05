@@ -151,22 +151,35 @@ export async function useCpythonVersion(
     core.addPath(_binDir);
 
     if (IS_WINDOWS) {
-      // Add --user directory
+      // Extract version details
       const version = path.basename(path.dirname(installDir));
       const major = semver.major(version);
       const minor = semver.minor(version);
+      const freethreadedInput = core.getInput('freethreaded');
+      const freethreaded = freethreadedInput === 'true' || architecture.includes('freethreaded');
 
       const basePath = process.env['APPDATA'] || '';
       let versionSuffix = `${major}${minor}`;
-
       // Append '-32' for x86 architecture if Python version is >= 3.10
       if (
         architecture === 'x86' &&
         (major > 3 || (major === 3 && minor >= 10))
       ) {
         versionSuffix += '-32';
+      } else if (architecture === 'arm64') {
+        versionSuffix += '-arm64';
       }
-
+      // Append 't' for freethreaded builds
+      if (freethreaded) {
+        versionSuffix += 't';
+        if (architecture === 'x86-freethreaded') {
+          versionSuffix += '-32';
+        } else if (architecture === 'arm64-freethreaded') {
+          versionSuffix += '-arm64';
+        }else if(architecture === 'x64-freethreaded') {
+          versionSuffix += '-64';
+        }
+      }
       // Add user Scripts path
       const userScriptsDir = path.join(
         basePath,
@@ -175,17 +188,6 @@ export async function useCpythonVersion(
         'Scripts'
       );
       core.addPath(userScriptsDir);
-
-      // Conditionally add free-threaded Scripts path
-      if (freethreaded) {
-        const freethreadedPath = path.join(
-          basePath,
-          'Python',
-          `Python${major}${minor}t`,
-          'Scripts'
-        );
-        core.addPath(freethreadedPath);
-      }
     }
     // On Linux and macOS, pip will create the --user directory and add it to PATH as needed.
   }
