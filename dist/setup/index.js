@@ -97624,6 +97624,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.cacheDependencies = void 0;
 const core = __importStar(__nccwpck_require__(7484));
 const finder = __importStar(__nccwpck_require__(6843));
 const finderPyPy = __importStar(__nccwpck_require__(2625));
@@ -97667,6 +97668,7 @@ function cacheDependencies(cache, pythonVersion) {
         yield cacheDistributor.restoreCache();
     });
 }
+exports.cacheDependencies = cacheDependencies;
 function resolveVersionInputFromDefaultFile() {
     const couples = [
         ['.python-version', utils_1.getVersionInputFromPlainFile]

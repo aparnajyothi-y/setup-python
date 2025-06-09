@@ -22,7 +22,7 @@ function isGraalPyVersion(versionSpec: string) {
   return versionSpec.startsWith('graalpy');
 }
 
-async function cacheDependencies(cache: string, pythonVersion: string) {
+export async function cacheDependencies(cache: string, pythonVersion: string) {
   const cacheDependencyPath = core.getInput('cache-dependency-path') || undefined;
   let resolvedDependencyPath: string | undefined = undefined;
 
