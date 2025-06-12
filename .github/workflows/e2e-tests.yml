@@ -125,6 +125,10 @@ jobs:
             architecture: x86
             python-version: '3.10'
             freethreaded: false
+          - os: windows-latest
+            architecture: x86
+            python-version: '3.9'
+            freethreaded: false
 
     steps:
       - name: Checkout code
