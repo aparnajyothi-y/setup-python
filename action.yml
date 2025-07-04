@@ -20,7 +20,7 @@ inputs:
     default: ${{ github.server_url == 'https://github.com' && github.token || '' }}
   cache-dependency-path:
     description: "Used to specify the path to dependency files. Supports wildcards or a list of file names for caching multiple dependencies."
-   overwrite:
+  overwrite:
     description: Whether to overwrite existing file in workspace
     required: false
     default: 'false'
