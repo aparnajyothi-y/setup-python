@@ -30,17 +30,17 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
   if (cacheDependencyPath) {
     const actionPath = process.env.GITHUB_ACTION_PATH || '';
     const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
-
+  
     const sourcePath = path.resolve(actionPath, cacheDependencyPath);
     const relativePath = path.relative(actionPath, sourcePath);
     const targetPath = path.resolve(workspace, relativePath);
-
+  
     try {
       const sourceExists = await fs.promises
         .access(sourcePath, fs.constants.F_OK)
         .then(() => true)
         .catch(() => false);
-
+  
       if (!sourceExists) {
         core.warning(
           `The resolved cache-dependency-path does not exist: ${sourcePath}`
@@ -48,17 +48,27 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
       } else {
         if (sourcePath !== targetPath) {
           const targetDir = path.dirname(targetPath);
-          // Create target directory if it doesn't exist
           await fs.promises.mkdir(targetDir, {recursive: true});
-          // Copy file asynchronously
-          await fs.promises.copyFile(sourcePath, targetPath);
-          core.info(`Copied ${sourcePath} to ${targetPath}`);
+  
+          const targetExists = await fs.promises
+            .access(targetPath, fs.constants.F_OK)
+            .then(() => true)
+            .catch(() => false);
+  
+          if (!targetExists) {
+            await fs.promises.copyFile(sourcePath, targetPath);
+            core.info(`Copied ${sourcePath} to ${targetPath}`);
+          } else {
+            core.info(
+              `Skipped copying ${sourcePath} — target already exists at ${targetPath}`
+            );
+          }
         } else {
           core.info(
             `Dependency file is already inside the workspace: ${sourcePath}`
           );
         }
-
+  
         resolvedDependencyPath = path
           .relative(workspace, targetPath)
           .replace(/\\/g, '/');

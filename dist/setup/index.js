@@ -96942,11 +96942,18 @@ function cacheDependencies(cache, pythonVersion) {
                 else {
                     if (sourcePath !== targetPath) {
                         const targetDir = path.dirname(targetPath);
-                        // Create target directory if it doesn't exist
                         yield fs_1.default.promises.mkdir(targetDir, { recursive: true });
-                        // Copy file asynchronously
-                        yield fs_1.default.promises.copyFile(sourcePath, targetPath);
-                        core.info(`Copied ${sourcePath} to ${targetPath}`);
+                        const targetExists = yield fs_1.default.promises
+                            .access(targetPath, fs_1.default.constants.F_OK)
+                            .then(() => true)
+                            .catch(() => false);
+                        if (!targetExists) {
+                            yield fs_1.default.promises.copyFile(sourcePath, targetPath);
+                            core.info(`Copied ${sourcePath} to ${targetPath}`);
+                        }
+                        else {
+                            core.info(`Skipped copying ${sourcePath} — target already exists at ${targetPath}`);
+                        }
                     }
                     else {
                         core.info(`Dependency file is already inside the workspace: ${sourcePath}`);
