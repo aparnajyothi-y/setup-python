@@ -26,7 +26,7 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
   const cacheDependencyPath =
     core.getInput('cache-dependency-path') || undefined;
   let resolvedDependencyPath: string | undefined = undefined;
-
+  const overwrite = core.getBooleanInput('overwrite', {required: false}) ?? false;
   if (cacheDependencyPath) {
     const actionPath = process.env.GITHUB_ACTION_PATH || '';
     const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
@@ -55,9 +55,11 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
             .then(() => true)
             .catch(() => false);
   
-          if (!targetExists) {
+          if (!targetExists || overwrite) {
             await fs.promises.copyFile(sourcePath, targetPath);
-            core.info(`Copied ${sourcePath} to ${targetPath}`);
+            core.info(
+              `${targetExists ? 'Overwrote' : 'Copied'} ${sourcePath} to ${targetPath}`
+            );
           } else {
             core.info(
               `Skipped copying ${sourcePath} — target already exists at ${targetPath}`
