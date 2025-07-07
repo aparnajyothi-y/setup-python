@@ -21,18 +21,20 @@ function isPyPyVersion(versionSpec: string) {
 function isGraalPyVersion(versionSpec: string) {
   return versionSpec.startsWith('graalpy');
 }
-
 export async function cacheDependencies(cache: string, pythonVersion: string) {
-  const cacheDependencyPath = core.getInput('cache-dependency-path') || undefined;
-  let resolvedDependencyPath: string | undefined;
+  const cacheDependencyPath =
+    core.getInput('cache-dependency-path') || undefined;
+  let resolvedDependencyPath: string | undefined = undefined;
+  const overwrite =
+    core.getBooleanInput('overwrite', {required: false}) ?? false;
 
   if (cacheDependencyPath) {
-    const actionPath = process.env.GITHUB_ACTION_PATH || path.resolve(__dirname, '..');
+    const actionPath = process.env.GITHUB_ACTION_PATH || '';
     const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
-    const sourcePath = path.resolve(actionPath, cacheDependencyPath);
 
-    const safeFolder = path.join(workspace, '.setup-python-deps');
-    const safeTargetPath = path.join(safeFolder, path.basename(sourcePath));
+    const sourcePath = path.resolve(actionPath, cacheDependencyPath);
+    const relativePath = path.relative(actionPath, sourcePath);
+    const targetPath = path.resolve(workspace, relativePath);
 
     try {
       const sourceExists = await fs.promises
@@ -41,33 +43,59 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
         .catch(() => false);
 
       if (!sourceExists) {
-        core.warning(`The resolved cache-dependency-path does not exist: ${sourcePath}`);
+        core.warning(
+          `The resolved cache-dependency-path does not exist: ${sourcePath}`
+        );
       } else {
-        await fs.promises.mkdir(safeFolder, { recursive: true });
-        await fs.promises.copyFile(sourcePath, safeTargetPath);
-        core.info(`Copied ${sourcePath} to safe location: ${safeTargetPath}`);
+        if (sourcePath !== targetPath) {
+          const targetDir = path.dirname(targetPath);
+          await fs.promises.mkdir(targetDir, {recursive: true});
+
+          const targetExists = await fs.promises
+            .access(targetPath, fs.constants.F_OK)
+            .then(() => true)
+            .catch(() => false);
+
+          if (targetExists && !overwrite) {
+            core.warning(
+              `A file with the same name already exists in the workspace at ${targetPath}. ` +
+                `Since 'overwrite' is false, the existing file will be used instead of the one provided by the action. ` +
+                `To use the action's file, consider renaming one of the files or setting 'overwrite: true'.`
+            );
+            core.info(
+              `Skipped copying ${sourcePath} — target already exists at ${targetPath}`
+            );
+          } else {
+            await fs.promises.copyFile(sourcePath, targetPath);
+            core.info(
+              `${targetExists ? 'Overwrote' : 'Copied'} ${sourcePath} to ${targetPath}`
+            );
+          }
+        } else {
+          core.info(
+            `Dependency file is already inside the workspace: ${sourcePath}`
+          );
+        }
 
         resolvedDependencyPath = path
-          .relative(workspace, safeTargetPath)
+          .relative(workspace, targetPath)
           .replace(/\\/g, '/');
-
         core.info(`Resolved cache-dependency-path: ${resolvedDependencyPath}`);
       }
-    } catch (err) {
-      core.warning(`Failed to copy dependency file: ${err}`);
+    } catch (error) {
+      core.warning(
+        `Failed to copy file from ${sourcePath} to ${targetPath}: ${error}`
+      );
     }
   }
 
-  const finalDependencyPath = resolvedDependencyPath;
-  if (!finalDependencyPath) {
-    core.setFailed('Failed to resolve dependency path from action.');
-    return;
-  }
+  // Pass resolvedDependencyPath if available, else fallback to original input
+  const dependencyPathForCache = resolvedDependencyPath ?? cacheDependencyPath;
 
   const cacheDistributor = getCacheDistributor(
     cache,
     pythonVersion,
-    finalDependencyPath
+    dependencyPathForCache
   );
   await cacheDistributor.restoreCache();
 }
