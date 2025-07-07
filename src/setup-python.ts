@@ -22,35 +22,34 @@ function isGraalPyVersion(versionSpec: string) {
   return versionSpec.startsWith('graalpy');
 }
 export async function cacheDependencies(cache: string, pythonVersion: string) {
-  const cacheDependencyPath = core.getInput('cache-dependency-path') || undefined;
+  const userInputPath = core.getInput('cache-dependency-path') || undefined;
   let resolvedDependencyPath: string | undefined;
 
-  if (cacheDependencyPath) {
+  if (userInputPath) {
     const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
     const actionPath = process.env.GITHUB_ACTION_PATH || '';
 
-    // This assumes the actual file in your action is named `requirements.txt`
-    const actionSourceFile = 'requirements.txt';
-    const actionSourcePath = path.resolve(actionPath, actionSourceFile);
-
-    const sourceExists = await fs.promises
+    const actionSourcePath = path.resolve(actionPath, userInputPath);
+    const actionFileExists = await fs.promises
       .access(actionSourcePath, fs.constants.F_OK)
       .then(() => true)
       .catch(() => false);
 
-    if (!sourceExists) {
+    if (!actionFileExists) {
       core.warning(`Dependency file not found in action: ${actionSourcePath}`);
     } else {
       try {
-        // Copy to workspace/.setup-python-cache/requirements.txt
-        const targetDir = path.join(workspace, '.setup-python-cache');
+        // Copy to a fixed subdir inside workspace
+        const targetDir = path.join(workspace, '.github', '_generated');
         await fs.promises.mkdir(targetDir, {recursive: true});
 
-        const targetPath = path.join(targetDir, actionSourceFile);
-        await fs.promises.copyFile(actionSourcePath, targetPath);
+        const fileName = path.basename(userInputPath);
+        const copiedPath = path.join(targetDir, fileName);
 
-        resolvedDependencyPath = path.relative(workspace, targetPath).replace(/\\/g, '/');
-        core.info(`Copied action file to workspace: ${targetPath}`);
+        await fs.promises.copyFile(actionSourcePath, copiedPath);
+        resolvedDependencyPath = path.relative(workspace, copiedPath).replace(/\\/g, '/');
+
+        core.info(`Copied action file to workspace: ${copiedPath}`);
         core.info(`Resolved dependency path for cache: ${resolvedDependencyPath}`);
       } catch (err) {
         core.warning(`Failed to copy file from action to workspace: ${err}`);
@@ -58,7 +57,7 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
     }
   }
 
-  const dependencyPathForCache = resolvedDependencyPath ?? cacheDependencyPath;
+  const dependencyPathForCache = resolvedDependencyPath ?? userInputPath;
 
   const cacheDistributor = getCacheDistributor(
     cache,
