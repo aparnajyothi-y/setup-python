@@ -96883,57 +96883,54 @@ function isGraalPyVersion(versionSpec) {
 }
 function cacheDependencies(cache, pythonVersion) {
     return __awaiter(this, void 0, void 0, function* () {
-        var _a;
         const cacheDependencyPath = core.getInput('cache-dependency-path') || undefined;
-        let resolvedDependencyPath = undefined;
-        const overwrite = (_a = core.getBooleanInput('overwrite', { required: false })) !== null && _a !== void 0 ? _a : false;
+        let resolvedDependencyPath;
         if (cacheDependencyPath) {
-            const actionPath = process.env.GITHUB_ACTION_PATH || '';
             const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
-            const sourcePath = path.resolve(actionPath, cacheDependencyPath);
-            const relativePath = path.relative(actionPath, sourcePath);
-            const targetPath = path.resolve(workspace, relativePath);
-            try {
-                const sourceExists = yield fs_1.default.promises
-                    .access(sourcePath, fs_1.default.constants.F_OK)
-                    .then(() => true)
-                    .catch(() => false);
-                if (!sourceExists) {
-                    core.warning(`The resolved cache-dependency-path does not exist: ${sourcePath}`);
+            const actionPath = process.env.GITHUB_ACTION_PATH || '';
+            const actionSourcePath = path.resolve(actionPath, cacheDependencyPath);
+            const workspaceSourcePath = path.resolve(workspace, cacheDependencyPath);
+            let sourcePath;
+            let sourceType;
+            const actionFileExists = yield fs_1.default.promises
+                .access(actionSourcePath, fs_1.default.constants.F_OK)
+                .then(() => true)
+                .catch(() => false);
+            const workspaceFileExists = yield fs_1.default.promises
+                .access(workspaceSourcePath, fs_1.default.constants.F_OK)
+                .then(() => true)
+                .catch(() => false);
+            if (actionFileExists) {
+                if (workspaceFileExists) {
+                    core.warning(`A file named '${cacheDependencyPath}' exists in both the composite action and the workspace. ` +
+                        `Using the action's file. To avoid ambiguity, consider renaming one of the files.`);
                 }
-                else {
-                    if (sourcePath !== targetPath) {
-                        const targetDir = path.dirname(targetPath);
-                        yield fs_1.default.promises.mkdir(targetDir, { recursive: true });
-                        const targetExists = yield fs_1.default.promises
-                            .access(targetPath, fs_1.default.constants.F_OK)
-                            .then(() => true)
-                            .catch(() => false);
-                        if (targetExists && !overwrite) {
-                            core.warning(`A file with the same name already exists in the workspace at ${targetPath}. ` +
-                                `Since 'overwrite' is false, the existing file will be used instead of the one provided by the action. ` +
-                                `To use the action's file, consider renaming one of the files or setting 'overwrite: true'.`);
-                            core.info(`Skipped copying ${sourcePath} — target already exists at ${targetPath}`);
-                        }
-                        else {
-                            yield fs_1.default.promises.copyFile(sourcePath, targetPath);
-                            core.info(`${targetExists ? 'Overwrote' : 'Copied'} ${sourcePath} to ${targetPath}`);
-                        }
-                    }
-                    else {
-                        core.info(`Dependency file is already inside the workspace: ${sourcePath}`);
-                    }
+                sourcePath = actionSourcePath;
+                sourceType = 'action';
+            }
+            else if (workspaceFileExists) {
+                sourcePath = workspaceSourcePath;
+                sourceType = 'workspace';
+            }
+            else {
+                core.warning(`Dependency file not found at either:\n- ${actionSourcePath}\n- ${workspaceSourcePath}`);
+            }
+            if (sourcePath) {
+                try {
+                    const tempDir = yield fs_1.default.promises.mkdtemp(path.join(workspace, '.setup-python-cache-'));
+                    const targetPath = path.join(tempDir, path.basename(sourcePath));
+                    yield fs_1.default.promises.copyFile(sourcePath, targetPath);
+                    core.info(`${sourceType === 'action' ? 'Copied from action' : 'Copied from workspace'}: ${sourcePath} to ${targetPath}`);
                     resolvedDependencyPath = path
                         .relative(workspace, targetPath)
                         .replace(/\\/g, '/');
                     core.info(`Resolved cache-dependency-path: ${resolvedDependencyPath}`);
                 }
-            }
-            catch (error) {
-                core.warning(`Failed to copy file from ${sourcePath} to ${targetPath}: ${error}`);
+                catch (error) {
+                    core.warning(`Failed to copy dependency file: ${error}`);
+                }
             }
         }
-        // Pass resolvedDependencyPath if available, else fallback to original input
         const dependencyPathForCache = resolvedDependencyPath !== null && resolvedDependencyPath !== void 0 ? resolvedDependencyPath : cacheDependencyPath;
         const cacheDistributor = (0, cache_factory_1.getCacheDistributor)(cache, pythonVersion, dependencyPathForCache);
         yield cacheDistributor.restoreCache();
