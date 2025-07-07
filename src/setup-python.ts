@@ -23,13 +23,13 @@ function isGraalPyVersion(versionSpec: string) {
 }
 
 export async function cacheDependencies(cache: string, pythonVersion: string) {
-  const cacheDependencyPath =
-    core.getInput('cache-dependency-path') || undefined;
+  const cacheDependencyPath = core.getInput('cache-dependency-path') || undefined;
   let resolvedDependencyPath: string | undefined = undefined;
 
   if (cacheDependencyPath) {
+    const actionPath = process.env.GITHUB_ACTION_PATH || '';
     const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
-    const actionPath = path.resolve(__dirname, '..'); // Reliable in both JS/composite
+
     const sourcePath = path.resolve(actionPath, cacheDependencyPath);
 
     try {
@@ -39,30 +39,20 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
         .catch(() => false);
 
       if (!sourceExists) {
-        core.warning(
-          `The resolved cache-dependency-path does not exist: ${sourcePath}`
-        );
+        core.warning(`The resolved cache-dependency-path does not exist: ${sourcePath}`);
       } else {
-        // ✅ Place inside workspace, but in a non-conflicting subfolder
-        const targetDir = path.join(workspace, '.setup-python-cache');
-        await fs.promises.mkdir(targetDir, {recursive: true});
+        const safeFolder = path.join(workspace, '.setup-python-deps');
+        await fs.promises.mkdir(safeFolder, { recursive: true });
 
-        const targetPath = path.join(targetDir, path.basename(sourcePath));
+        const targetPath = path.join(safeFolder, path.basename(sourcePath));
         await fs.promises.copyFile(sourcePath, targetPath);
+        core.info(`Copied ${sourcePath} to safe location: ${targetPath}`);
 
-        core.info(`Copied ${sourcePath} to ${targetPath}`);
-
-        // ✅ Return relative path for caching
-        resolvedDependencyPath = path
-          .relative(workspace, targetPath)
-          .replace(/\\/g, '/');
-
+        resolvedDependencyPath = path.relative(workspace, targetPath).replace(/\\/g, '/');
         core.info(`Resolved cache-dependency-path: ${resolvedDependencyPath}`);
       }
     } catch (error) {
-      core.warning(
-        `Failed to copy file from ${sourcePath} to target: ${error}`
-      );
+      core.warning(`Failed to copy file from ${sourcePath} to safe location: ${error}`);
     }
   }
 

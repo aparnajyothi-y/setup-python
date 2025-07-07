@@ -96886,8 +96886,8 @@ function cacheDependencies(cache, pythonVersion) {
         const cacheDependencyPath = core.getInput('cache-dependency-path') || undefined;
         let resolvedDependencyPath = undefined;
         if (cacheDependencyPath) {
+            const actionPath = process.env.GITHUB_ACTION_PATH || '';
             const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
-            const actionPath = path.resolve(__dirname, '..'); // Reliable in both JS/composite
             const sourcePath = path.resolve(actionPath, cacheDependencyPath);
             try {
                 const sourceExists = yield fs_1.default.promises
@@ -96898,21 +96898,17 @@ function cacheDependencies(cache, pythonVersion) {
                     core.warning(`The resolved cache-dependency-path does not exist: ${sourcePath}`);
                 }
                 else {
-                    // ✅ Place inside workspace, but in a non-conflicting subfolder
-                    const targetDir = path.join(workspace, '.setup-python-cache');
-                    yield fs_1.default.promises.mkdir(targetDir, { recursive: true });
-                    const targetPath = path.join(targetDir, path.basename(sourcePath));
+                    const safeFolder = path.join(workspace, '.setup-python-deps');
+                    yield fs_1.default.promises.mkdir(safeFolder, { recursive: true });
+                    const targetPath = path.join(safeFolder, path.basename(sourcePath));
                     yield fs_1.default.promises.copyFile(sourcePath, targetPath);
-                    core.info(`Copied ${sourcePath} to ${targetPath}`);
-                    // ✅ Return relative path for caching
-                    resolvedDependencyPath = path
-                        .relative(workspace, targetPath)
-                        .replace(/\\/g, '/');
+                    core.info(`Copied ${sourcePath} to safe location: ${targetPath}`);
+                    resolvedDependencyPath = path.relative(workspace, targetPath).replace(/\\/g, '/');
                     core.info(`Resolved cache-dependency-path: ${resolvedDependencyPath}`);
                 }
             }
             catch (error) {
-                core.warning(`Failed to copy file from ${sourcePath} to target: ${error}`);
+                core.warning(`Failed to copy file from ${sourcePath} to safe location: ${error}`);
             }
         }
         const dependencyPathForCache = resolvedDependencyPath !== null && resolvedDependencyPath !== void 0 ? resolvedDependencyPath : cacheDependencyPath;
