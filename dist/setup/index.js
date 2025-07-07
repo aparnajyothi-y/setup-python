@@ -96898,12 +96898,15 @@ function cacheDependencies(cache, pythonVersion) {
                     core.warning(`The resolved cache-dependency-path does not exist: ${sourcePath}`);
                 }
                 else {
-                    // Create a unique temp directory to avoid polluting the workspace
-                    const tempDir = yield fs_1.default.promises.mkdtemp(path.join(os.tmpdir(), 'setup-python-cache-'));
+                    // ✅ Create isolated temp dir inside workspace to stay compatible with cache matchers
+                    const tempDir = yield fs_1.default.promises.mkdtemp(path.join(workspace, '.tmp-setup-python-'));
                     const targetPath = path.join(tempDir, path.basename(sourcePath));
                     yield fs_1.default.promises.copyFile(sourcePath, targetPath);
                     core.info(`Copied ${sourcePath} to isolated temp location: ${targetPath}`);
-                    resolvedDependencyPath = targetPath;
+                    // Use relative path from workspace so cache tools can pick it up
+                    resolvedDependencyPath = path
+                        .relative(workspace, targetPath)
+                        .replace(/\\/g, '/');
                     core.info(`Resolved cache-dependency-path: ${resolvedDependencyPath}`);
                 }
             }

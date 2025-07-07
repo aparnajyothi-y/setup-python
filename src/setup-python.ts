@@ -21,7 +21,6 @@ function isPyPyVersion(versionSpec: string) {
 function isGraalPyVersion(versionSpec: string) {
   return versionSpec.startsWith('graalpy');
 }
-
 export async function cacheDependencies(cache: string, pythonVersion: string) {
   const cacheDependencyPath =
     core.getInput('cache-dependency-path') || undefined;
@@ -43,9 +42,9 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
           `The resolved cache-dependency-path does not exist: ${sourcePath}`
         );
       } else {
-        // Create a unique temp directory to avoid polluting the workspace
+        // ✅ Create isolated temp dir inside workspace to stay compatible with cache matchers
         const tempDir = await fs.promises.mkdtemp(
-          path.join(os.tmpdir(), 'setup-python-cache-')
+          path.join(workspace, '.tmp-setup-python-')
         );
         const targetPath = path.join(tempDir, path.basename(sourcePath));
 
@@ -54,7 +53,11 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
           `Copied ${sourcePath} to isolated temp location: ${targetPath}`
         );
 
-        resolvedDependencyPath = targetPath;
+        // Use relative path from workspace so cache tools can pick it up
+        resolvedDependencyPath = path
+          .relative(workspace, targetPath)
+          .replace(/\\/g, '/');
+
         core.info(`Resolved cache-dependency-path: ${resolvedDependencyPath}`);
       }
     } catch (error) {
@@ -73,6 +76,7 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
   );
   await cacheDistributor.restoreCache();
 }
+
 function resolveVersionInputFromDefaultFile(): string[] {
   const couples: [string, (versionFile: string) => string[]][] = [
     ['.python-version', getVersionsInputFromPlainFile]
