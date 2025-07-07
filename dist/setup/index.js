@@ -96887,7 +96887,7 @@ function cacheDependencies(cache, pythonVersion) {
         let resolvedDependencyPath = undefined;
         if (cacheDependencyPath) {
             const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
-            const actionPath = process.env.GITHUB_ACTION_PATH || workspace;
+            const actionPath = path.resolve(__dirname, '..'); // Reliable in both JS/composite
             const sourcePath = path.resolve(actionPath, cacheDependencyPath);
             try {
                 const sourceExists = yield fs_1.default.promises
@@ -96898,12 +96898,13 @@ function cacheDependencies(cache, pythonVersion) {
                     core.warning(`The resolved cache-dependency-path does not exist: ${sourcePath}`);
                 }
                 else {
-                    // ✅ Create isolated temp dir inside workspace to stay compatible with cache matchers
-                    const tempDir = yield fs_1.default.promises.mkdtemp(path.join(workspace, '.tmp-setup-python-'));
-                    const targetPath = path.join(tempDir, path.basename(sourcePath));
+                    // ✅ Place inside workspace, but in a non-conflicting subfolder
+                    const targetDir = path.join(workspace, '.setup-python-cache');
+                    yield fs_1.default.promises.mkdir(targetDir, { recursive: true });
+                    const targetPath = path.join(targetDir, path.basename(sourcePath));
                     yield fs_1.default.promises.copyFile(sourcePath, targetPath);
-                    core.info(`Copied ${sourcePath} to isolated temp location: ${targetPath}`);
-                    // Use relative path from workspace so cache tools can pick it up
+                    core.info(`Copied ${sourcePath} to ${targetPath}`);
+                    // ✅ Return relative path for caching
                     resolvedDependencyPath = path
                         .relative(workspace, targetPath)
                         .replace(/\\/g, '/');
@@ -96911,7 +96912,7 @@ function cacheDependencies(cache, pythonVersion) {
                 }
             }
             catch (error) {
-                core.warning(`Failed to copy file from ${sourcePath} to temporary location: ${error}`);
+                core.warning(`Failed to copy file from ${sourcePath} to target: ${error}`);
             }
         }
         const dependencyPathForCache = resolvedDependencyPath !== null && resolvedDependencyPath !== void 0 ? resolvedDependencyPath : cacheDependencyPath;

@@ -21,6 +21,7 @@ function isPyPyVersion(versionSpec: string) {
 function isGraalPyVersion(versionSpec: string) {
   return versionSpec.startsWith('graalpy');
 }
+
 export async function cacheDependencies(cache: string, pythonVersion: string) {
   const cacheDependencyPath =
     core.getInput('cache-dependency-path') || undefined;
@@ -28,7 +29,7 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
 
   if (cacheDependencyPath) {
     const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
-    const actionPath = process.env.GITHUB_ACTION_PATH || workspace;
+    const actionPath = path.resolve(__dirname, '..'); // Reliable in both JS/composite
     const sourcePath = path.resolve(actionPath, cacheDependencyPath);
 
     try {
@@ -42,18 +43,16 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
           `The resolved cache-dependency-path does not exist: ${sourcePath}`
         );
       } else {
-        // ✅ Create isolated temp dir inside workspace to stay compatible with cache matchers
-        const tempDir = await fs.promises.mkdtemp(
-          path.join(workspace, '.tmp-setup-python-')
-        );
-        const targetPath = path.join(tempDir, path.basename(sourcePath));
+        // ✅ Place inside workspace, but in a non-conflicting subfolder
+        const targetDir = path.join(workspace, '.setup-python-cache');
+        await fs.promises.mkdir(targetDir, {recursive: true});
 
+        const targetPath = path.join(targetDir, path.basename(sourcePath));
         await fs.promises.copyFile(sourcePath, targetPath);
-        core.info(
-          `Copied ${sourcePath} to isolated temp location: ${targetPath}`
-        );
 
-        // Use relative path from workspace so cache tools can pick it up
+        core.info(`Copied ${sourcePath} to ${targetPath}`);
+
+        // ✅ Return relative path for caching
         resolvedDependencyPath = path
           .relative(workspace, targetPath)
           .replace(/\\/g, '/');
@@ -62,7 +61,7 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
       }
     } catch (error) {
       core.warning(
-        `Failed to copy file from ${sourcePath} to temporary location: ${error}`
+        `Failed to copy file from ${sourcePath} to target: ${error}`
       );
     }
   }
@@ -76,7 +75,6 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
   );
   await cacheDistributor.restoreCache();
 }
-
 function resolveVersionInputFromDefaultFile(): string[] {
   const couples: [string, (versionFile: string) => string[]][] = [
     ['.python-version', getVersionsInputFromPlainFile]
