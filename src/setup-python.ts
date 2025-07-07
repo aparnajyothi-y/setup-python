@@ -30,57 +30,27 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
     const actionPath = process.env.GITHUB_ACTION_PATH || '';
 
     const actionSourcePath = path.resolve(actionPath, cacheDependencyPath);
-    const workspaceSourcePath = path.resolve(workspace, cacheDependencyPath);
-
-    let sourcePath: string | undefined;
-    let sourceType: 'action' | 'workspace' | undefined;
-
     const actionFileExists = await fs.promises
       .access(actionSourcePath, fs.constants.F_OK)
       .then(() => true)
       .catch(() => false);
 
-    const workspaceFileExists = await fs.promises
-      .access(workspaceSourcePath, fs.constants.F_OK)
-      .then(() => true)
-      .catch(() => false);
-
-    if (actionFileExists) {
-      if (workspaceFileExists) {
-        core.warning(
-          `A file named '${cacheDependencyPath}' exists in both the composite action and the workspace. ` +
-            `Using the action's file. To avoid ambiguity, consider renaming one of the files.`
-        );
-      }
-      sourcePath = actionSourcePath;
-      sourceType = 'action';
-    } else if (workspaceFileExists) {
-      sourcePath = workspaceSourcePath;
-      sourceType = 'workspace';
+    if (!actionFileExists) {
+      core.warning(`Dependency file not found in action: ${actionSourcePath}`);
     } else {
-      core.warning(
-        `Dependency file not found at either:\n- ${actionSourcePath}\n- ${workspaceSourcePath}`
-      );
-    }
-
-    if (sourcePath) {
       try {
-        const tempDir = await fs.promises.mkdtemp(
-          path.join(workspace, '.setup-python-cache-')
-        );
-        const targetPath = path.join(tempDir, path.basename(sourcePath));
-        await fs.promises.copyFile(sourcePath, targetPath);
+        // Create a unique temp folder inside workspace
+        const tempDir = path.join(workspace, '.setup-python-cache');
+        await fs.promises.mkdir(tempDir, {recursive: true});
 
-        core.info(
-          `${sourceType === 'action' ? 'Copied from action' : 'Copied from workspace'}: ${sourcePath} to ${targetPath}`
-        );
+        const tempTargetPath = path.join(tempDir, path.basename(cacheDependencyPath));
+        await fs.promises.copyFile(actionSourcePath, tempTargetPath);
 
-        resolvedDependencyPath = path
-          .relative(workspace, targetPath)
-          .replace(/\\/g, '/');
-        core.info(`Resolved cache-dependency-path: ${resolvedDependencyPath}`);
-      } catch (error) {
-        core.warning(`Failed to copy dependency file: ${error}`);
+        resolvedDependencyPath = path.relative(workspace, tempTargetPath).replace(/\\/g, '/');
+        core.info(`Copied action file to workspace: ${tempTargetPath}`);
+        core.info(`Resolved dependency path for cache: ${resolvedDependencyPath}`);
+      } catch (err) {
+        core.warning(`Failed to copy file from action to workspace: ${err}`);
       }
     }
   }
