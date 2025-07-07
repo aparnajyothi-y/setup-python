@@ -58,9 +58,9 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
 
           if (targetExists && !overwrite) {
             core.warning(
-              `A file with the same name already exists in the workspace at ${targetPath}. ` +
-                `Since 'overwrite' is false, the existing file will be used instead of the one provided by the action. ` +
-                `To use the action's file, consider renaming one of the files or setting 'overwrite: true'.`
+              `build
+    A file named 'requirements.txt' exists in both the composite action and the workspace. Using the action's file. To avoid ambiguity, consider renaming one of the files.
+`
             );
             core.info(
               `Skipped copying ${sourcePath} — target already exists at ${targetPath}`
