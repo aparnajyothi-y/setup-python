@@ -96884,11 +96884,13 @@ function isGraalPyVersion(versionSpec) {
 function cacheDependencies(cache, pythonVersion) {
     return __awaiter(this, void 0, void 0, function* () {
         const cacheDependencyPath = core.getInput('cache-dependency-path') || undefined;
-        let resolvedDependencyPath = undefined;
+        let resolvedDependencyPath;
         if (cacheDependencyPath) {
-            const actionPath = process.env.GITHUB_ACTION_PATH || '';
+            const actionPath = process.env.GITHUB_ACTION_PATH || path.resolve(__dirname, '..');
             const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
             const sourcePath = path.resolve(actionPath, cacheDependencyPath);
+            const safeFolder = path.join(workspace, '.setup-python-deps');
+            const safeTargetPath = path.join(safeFolder, path.basename(sourcePath));
             try {
                 const sourceExists = yield fs_1.default.promises
                     .access(sourcePath, fs_1.default.constants.F_OK)
@@ -96898,21 +96900,25 @@ function cacheDependencies(cache, pythonVersion) {
                     core.warning(`The resolved cache-dependency-path does not exist: ${sourcePath}`);
                 }
                 else {
-                    const safeFolder = path.join(workspace, '.setup-python-deps');
                     yield fs_1.default.promises.mkdir(safeFolder, { recursive: true });
-                    const targetPath = path.join(safeFolder, path.basename(sourcePath));
-                    yield fs_1.default.promises.copyFile(sourcePath, targetPath);
-                    core.info(`Copied ${sourcePath} to safe location: ${targetPath}`);
-                    resolvedDependencyPath = path.relative(workspace, targetPath).replace(/\\/g, '/');
+                    yield fs_1.default.promises.copyFile(sourcePath, safeTargetPath);
+                    core.info(`Copied ${sourcePath} to safe location: ${safeTargetPath}`);
+                    resolvedDependencyPath = path
+                        .relative(workspace, safeTargetPath)
+                        .replace(/\\/g, '/');
                     core.info(`Resolved cache-dependency-path: ${resolvedDependencyPath}`);
                 }
             }
-            catch (error) {
-                core.warning(`Failed to copy file from ${sourcePath} to safe location: ${error}`);
+            catch (err) {
+                core.warning(`Failed to copy dependency file: ${err}`);
             }
         }
-        const dependencyPathForCache = resolvedDependencyPath !== null && resolvedDependencyPath !== void 0 ? resolvedDependencyPath : cacheDependencyPath;
-        const cacheDistributor = (0, cache_factory_1.getCacheDistributor)(cache, pythonVersion, dependencyPathForCache);
+        const finalDependencyPath = resolvedDependencyPath;
+        if (!finalDependencyPath) {
+            core.setFailed('Failed to resolve dependency path from action.');
+            return;
+        }
+        const cacheDistributor = (0, cache_factory_1.getCacheDistributor)(cache, pythonVersion, finalDependencyPath);
         yield cacheDistributor.restoreCache();
     });
 }
