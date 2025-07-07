@@ -29,25 +29,28 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
     const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
     const actionPath = process.env.GITHUB_ACTION_PATH || '';
 
-    const actionSourcePath = path.resolve(actionPath, cacheDependencyPath);
-    const actionFileExists = await fs.promises
+    // This assumes the actual file in your action is named `requirements.txt`
+    const actionSourceFile = 'requirements.txt';
+    const actionSourcePath = path.resolve(actionPath, actionSourceFile);
+
+    const sourceExists = await fs.promises
       .access(actionSourcePath, fs.constants.F_OK)
       .then(() => true)
       .catch(() => false);
 
-    if (!actionFileExists) {
+    if (!sourceExists) {
       core.warning(`Dependency file not found in action: ${actionSourcePath}`);
     } else {
       try {
-        // Create a unique temp folder inside workspace
-        const tempDir = path.join(workspace, '.setup-python-cache');
-        await fs.promises.mkdir(tempDir, {recursive: true});
+        // Copy to workspace/.setup-python-cache/requirements.txt
+        const targetDir = path.join(workspace, '.setup-python-cache');
+        await fs.promises.mkdir(targetDir, {recursive: true});
 
-        const tempTargetPath = path.join(tempDir, path.basename(cacheDependencyPath));
-        await fs.promises.copyFile(actionSourcePath, tempTargetPath);
+        const targetPath = path.join(targetDir, actionSourceFile);
+        await fs.promises.copyFile(actionSourcePath, targetPath);
 
-        resolvedDependencyPath = path.relative(workspace, tempTargetPath).replace(/\\/g, '/');
-        core.info(`Copied action file to workspace: ${tempTargetPath}`);
+        resolvedDependencyPath = path.relative(workspace, targetPath).replace(/\\/g, '/');
+        core.info(`Copied action file to workspace: ${targetPath}`);
         core.info(`Resolved dependency path for cache: ${resolvedDependencyPath}`);
       } catch (err) {
         core.warning(`Failed to copy file from action to workspace: ${err}`);

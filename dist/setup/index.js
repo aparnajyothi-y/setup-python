@@ -96888,23 +96888,25 @@ function cacheDependencies(cache, pythonVersion) {
         if (cacheDependencyPath) {
             const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
             const actionPath = process.env.GITHUB_ACTION_PATH || '';
-            const actionSourcePath = path.resolve(actionPath, cacheDependencyPath);
-            const actionFileExists = yield fs_1.default.promises
+            // This assumes the actual file in your action is named `requirements.txt`
+            const actionSourceFile = 'requirements.txt';
+            const actionSourcePath = path.resolve(actionPath, actionSourceFile);
+            const sourceExists = yield fs_1.default.promises
                 .access(actionSourcePath, fs_1.default.constants.F_OK)
                 .then(() => true)
                 .catch(() => false);
-            if (!actionFileExists) {
+            if (!sourceExists) {
                 core.warning(`Dependency file not found in action: ${actionSourcePath}`);
             }
             else {
                 try {
-                    // Create a unique temp folder inside workspace
-                    const tempDir = path.join(workspace, '.setup-python-cache');
-                    yield fs_1.default.promises.mkdir(tempDir, { recursive: true });
-                    const tempTargetPath = path.join(tempDir, path.basename(cacheDependencyPath));
-                    yield fs_1.default.promises.copyFile(actionSourcePath, tempTargetPath);
-                    resolvedDependencyPath = path.relative(workspace, tempTargetPath).replace(/\\/g, '/');
-                    core.info(`Copied action file to workspace: ${tempTargetPath}`);
+                    // Copy to workspace/.setup-python-cache/requirements.txt
+                    const targetDir = path.join(workspace, '.setup-python-cache');
+                    yield fs_1.default.promises.mkdir(targetDir, { recursive: true });
+                    const targetPath = path.join(targetDir, actionSourceFile);
+                    yield fs_1.default.promises.copyFile(actionSourcePath, targetPath);
+                    resolvedDependencyPath = path.relative(workspace, targetPath).replace(/\\/g, '/');
+                    core.info(`Copied action file to workspace: ${targetPath}`);
                     core.info(`Resolved dependency path for cache: ${resolvedDependencyPath}`);
                 }
                 catch (err) {
