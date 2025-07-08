@@ -96910,9 +96910,9 @@ function cacheDependencies(cache, pythonVersion) {
                             .then(() => true)
                             .catch(() => false);
                         if (targetExists && !overwrite) {
+                            const filename = path.basename(cacheDependencyPath);
                             core.warning(`build
-    A file named 'requirements.txt' exists in both the composite action and the workspace. Using the action's file. To avoid ambiguity, consider renaming one of the files.
-`);
+            A file named '${filename}' exists in both the composite action and the workspace. The file in the workspace will be used. To avoid ambiguity, consider renaming one of the files or setting 'overwrite: true'.`);
                             core.info(`Skipped copying ${sourcePath} — target already exists at ${targetPath}`);
                         }
                         else {
