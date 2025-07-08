@@ -23,7 +23,7 @@ inputs:
   overwrite:
     description: Whether to overwrite existing file in workspace
     required: false
-    default: 'false'
+    default: false
   update-environment:
     description: "Set this option if you want the action to update environment variables."
     default: true
