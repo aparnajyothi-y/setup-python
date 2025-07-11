@@ -21,9 +21,8 @@ inputs:
   cache-dependency-path:
     description: "Used to specify the path to dependency files. Supports wildcards or a list of file names for caching multiple dependencies."
   overwrite:
-    description: Whether to overwrite existing file in workspace
-    required: false
-    default: false
+  description: "When 'true', allows files from the composite action’s cache-dependency-path to overwrite existing files in the workspace with the same name. Useful for common filenames like 'requirements.txt'."
+  default: false
   update-environment:
     description: "Set this option if you want the action to update environment variables."
     default: true

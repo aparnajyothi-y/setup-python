@@ -413,7 +413,7 @@ steps:
   # Or pip install -e '.[test]' to install test dependencies
 ```
 Note: cache-dependency-path supports files located outside the workspace root by copying them into the workspace to enable proper caching.
-To avoid unintentionally overwriting existing files in the workspace (especially when using composite actions with common file names like requirements.txt), a new input overwrite has been added. By default, files will not be copied if a file with the same path already exists in the workspace unless overwrite: true is explicitly set.
+A new input overwrite has been introduced to prevent accidental overwriting of existing files in the workspace when a composite action’s cache-dependency-path refers to common filenames like requirements.txt. By default, if a file with the same path already exists in the workspace, it will not be copied from the action unless overwrite: true is explicitly set.
 # Outputs and environment variables
 
 ## Outputs
