@@ -468,10 +468,6 @@ jobs:
     - run: echo '${{ steps.cp313.outputs.cache-hit }}' # true if cache-hit occurred on the primary key
 ```
 
-## Environment variables
-
-These environment variables become available after setup-python action execution:
-
 ### Environment variables
 
 These environment variables become available after setup-python action execution:
