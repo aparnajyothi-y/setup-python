@@ -474,11 +474,7 @@ These environment variables become available after setup-python action execution
 
 | Env. variable        | Description |
 |----------------------|-------------|
-| `pythonLocation` |  
-Contains the absolute path to the folder where the requested version of Python is installed.  
-
-- For **CPython**, the `python` executable is available at the root (e.g., `$pythonLocation/python` or `python.exe`).  
-- For **PyPy** and **GraalPy**, the layout follows the upstream archive structure, so the executable may be found under `bin/` or `Scripts/` depending on the platform.|
+| `pythonLocation`    | Contains the absolute path to the folder where the requested version of Python is installed.<br><br>For **CPython**, the `python` executable is available at the root (e.g., `$pythonLocation/python` or `python.exe`).<br>For **PyPy** and **GraalPy**, the layout follows the upstream archive structure, so the executable may be found under `bin/` or `Scripts/`, depending on the platform. |
 | `Python_ROOT_DIR`    | https://cmake.org/cmake/help/latest/module/FindPython.html#module:FindPython |
 | `Python2_ROOT_DIR`   | https://cmake.org/cmake/help/latest/module/FindPython2.html#module:FindPython2 |
 | `Python3_ROOT_DIR`   | https://cmake.org/cmake/help/latest/module/FindPython3.html#module:FindPython3 |
