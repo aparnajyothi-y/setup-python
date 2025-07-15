@@ -96883,56 +96883,30 @@ function isGraalPyVersion(versionSpec) {
 }
 function cacheDependencies(cache, pythonVersion) {
     return __awaiter(this, void 0, void 0, function* () {
-        var _a;
         const userInputPath = core.getInput('cache-dependency-path') || undefined;
-        const overwrite = (_a = core.getBooleanInput('overwrite', { required: false })) !== null && _a !== void 0 ? _a : false;
         let resolvedDependencyPath;
         if (userInputPath) {
             const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
             const actionPath = process.env.GITHUB_ACTION_PATH || '';
-            const actionSourcePath = path.resolve(actionPath, userInputPath);
-            const actionFileExists = yield fs_1.default.promises
-                .access(actionSourcePath, fs_1.default.constants.F_OK)
-                .then(() => true)
-                .catch(() => false);
-            if (!actionFileExists) {
-                core.warning(`Dependency file not found in action: ${actionSourcePath}`);
+            const sourcePath = path.resolve(actionPath, userInputPath);
+            const fileName = path.basename(userInputPath);
+            const targetDir = path.join(workspace, '.github', '_generated');
+            try {
+                // Check if file exists in the action
+                yield fs_1.default.promises.access(sourcePath, fs_1.default.constants.F_OK);
+                // Ensure target directory exists
+                yield fs_1.default.promises.mkdir(targetDir, { recursive: true });
+                // Always copy to a generated path (no overwrite check needed)
+                const targetPath = path.join(targetDir, fileName);
+                yield fs_1.default.promises.copyFile(sourcePath, targetPath);
+                resolvedDependencyPath = path
+                    .relative(workspace, targetPath)
+                    .replace(/\\/g, '/');
+                core.info(`Copied ${sourcePath} → ${targetPath}`);
+                core.info(`Resolved dependency path for cache: ${resolvedDependencyPath}`);
             }
-            else {
-                try {
-                    const fileName = path.basename(userInputPath);
-                    const targetDir = path.join(workspace, '.github', '_generated');
-                    yield fs_1.default.promises.mkdir(targetDir, { recursive: true });
-                    const targetPath = path.join(targetDir, fileName);
-                    const targetExists = yield fs_1.default.promises
-                        .access(targetPath, fs_1.default.constants.F_OK)
-                        .then(() => true)
-                        .catch(() => false);
-                    if (targetExists && !overwrite) {
-                        core.warning(`A file named '${fileName}' already exists in workspace. Skipping overwrite.`);
-                        // Create fallback temp dir inside workspace
-                        const tempDirPrefix = path.join(workspace, '.github', '_temp-deps-');
-                        const tempDir = yield fs_1.default.promises.mkdtemp(tempDirPrefix);
-                        const tempPath = path.join(tempDir, fileName);
-                        yield fs_1.default.promises.copyFile(actionSourcePath, tempPath);
-                        resolvedDependencyPath = path
-                            .relative(workspace, tempPath)
-                            .replace(/\\/g, '/');
-                        core.info(`Copied action file to temp path: ${tempPath}`);
-                        core.info(`Resolved dependency path for cache: ${resolvedDependencyPath}`);
-                    }
-                    else {
-                        yield fs_1.default.promises.copyFile(actionSourcePath, targetPath);
-                        resolvedDependencyPath = path
-                            .relative(workspace, targetPath)
-                            .replace(/\\/g, '/');
-                        core.info(`${targetExists ? 'Overwrote' : 'Copied'} action file to workspace: ${targetPath}`);
-                        core.info(`Resolved dependency path for cache: ${resolvedDependencyPath}`);
-                    }
-                }
-                catch (err) {
-                    core.warning(`Failed to copy file from action to workspace: ${err}`);
-                }
+            catch (err) {
+                core.warning(`Failed to copy '${userInputPath}' from action to workspace: ${err}`);
             }
         }
         const dependencyPathForCache = resolvedDependencyPath !== null && resolvedDependencyPath !== void 0 ? resolvedDependencyPath : userInputPath;
