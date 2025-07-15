@@ -23,6 +23,8 @@ function isGraalPyVersion(versionSpec: string) {
 }
 export async function cacheDependencies(cache: string, pythonVersion: string) {
   const userInputPath = core.getInput('cache-dependency-path') || undefined;
+  const overwrite =
+    core.getBooleanInput('overwrite', {required: false}) ?? false;
   let resolvedDependencyPath: string | undefined;
 
   if (userInputPath) {
@@ -39,18 +41,48 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
       core.warning(`Dependency file not found in action: ${actionSourcePath}`);
     } else {
       try {
-        // Copy to a fixed subdir inside workspace
+        const fileName = path.basename(userInputPath);
         const targetDir = path.join(workspace, '.github', '_generated');
         await fs.promises.mkdir(targetDir, {recursive: true});
+        const targetPath = path.join(targetDir, fileName);
 
-        const fileName = path.basename(userInputPath);
-        const copiedPath = path.join(targetDir, fileName);
+        const targetExists = await fs.promises
+          .access(targetPath, fs.constants.F_OK)
+          .then(() => true)
+          .catch(() => false);
 
-        await fs.promises.copyFile(actionSourcePath, copiedPath);
-        resolvedDependencyPath = path.relative(workspace, copiedPath).replace(/\\/g, '/');
+        if (targetExists && !overwrite) {
+          core.warning(
+            `A file named '${fileName}' already exists in workspace. Skipping overwrite.`
+          );
 
-        core.info(`Copied action file to workspace: ${copiedPath}`);
-        core.info(`Resolved dependency path for cache: ${resolvedDependencyPath}`);
+          // Create fallback temp dir inside workspace
+          const tempDirPrefix = path.join(workspace, '.github', '_temp-deps-');
+          const tempDir = await fs.promises.mkdtemp(tempDirPrefix);
+          const tempPath = path.join(tempDir, fileName);
+
+          await fs.promises.copyFile(actionSourcePath, tempPath);
+          resolvedDependencyPath = path
+            .relative(workspace, tempPath)
+            .replace(/\\/g, '/');
+
+          core.info(`Copied action file to temp path: ${tempPath}`);
+          core.info(
+            `Resolved dependency path for cache: ${resolvedDependencyPath}`
+          );
+        } else {
+          await fs.promises.copyFile(actionSourcePath, targetPath);
+          resolvedDependencyPath = path
+            .relative(workspace, targetPath)
+            .replace(/\\/g, '/');
+
+          core.info(
+            `${targetExists ? 'Overwrote' : 'Copied'} action file to workspace: ${targetPath}`
+          );
+          core.info(
+            `Resolved dependency path for cache: ${resolvedDependencyPath}`
+          );
+        }
       } catch (err) {
         core.warning(`Failed to copy file from action to workspace: ${err}`);
       }
@@ -66,6 +98,7 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
   );
   await cacheDistributor.restoreCache();
 }
+
 function resolveVersionInputFromDefaultFile(): string[] {
   const couples: [string, (versionFile: string) => string[]][] = [
     ['.python-version', getVersionsInputFromPlainFile]

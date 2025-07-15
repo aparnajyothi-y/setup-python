@@ -96883,7 +96883,9 @@ function isGraalPyVersion(versionSpec) {
 }
 function cacheDependencies(cache, pythonVersion) {
     return __awaiter(this, void 0, void 0, function* () {
+        var _a;
         const userInputPath = core.getInput('cache-dependency-path') || undefined;
+        const overwrite = (_a = core.getBooleanInput('overwrite', { required: false })) !== null && _a !== void 0 ? _a : false;
         let resolvedDependencyPath;
         if (userInputPath) {
             const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
@@ -96898,15 +96900,35 @@ function cacheDependencies(cache, pythonVersion) {
             }
             else {
                 try {
-                    // Copy to a fixed subdir inside workspace
+                    const fileName = path.basename(userInputPath);
                     const targetDir = path.join(workspace, '.github', '_generated');
                     yield fs_1.default.promises.mkdir(targetDir, { recursive: true });
-                    const fileName = path.basename(userInputPath);
-                    const copiedPath = path.join(targetDir, fileName);
-                    yield fs_1.default.promises.copyFile(actionSourcePath, copiedPath);
-                    resolvedDependencyPath = path.relative(workspace, copiedPath).replace(/\\/g, '/');
-                    core.info(`Copied action file to workspace: ${copiedPath}`);
-                    core.info(`Resolved dependency path for cache: ${resolvedDependencyPath}`);
+                    const targetPath = path.join(targetDir, fileName);
+                    const targetExists = yield fs_1.default.promises
+                        .access(targetPath, fs_1.default.constants.F_OK)
+                        .then(() => true)
+                        .catch(() => false);
+                    if (targetExists && !overwrite) {
+                        core.warning(`A file named '${fileName}' already exists in workspace. Skipping overwrite.`);
+                        // Create fallback temp dir inside workspace
+                        const tempDirPrefix = path.join(workspace, '.github', '_temp-deps-');
+                        const tempDir = yield fs_1.default.promises.mkdtemp(tempDirPrefix);
+                        const tempPath = path.join(tempDir, fileName);
+                        yield fs_1.default.promises.copyFile(actionSourcePath, tempPath);
+                        resolvedDependencyPath = path
+                            .relative(workspace, tempPath)
+                            .replace(/\\/g, '/');
+                        core.info(`Copied action file to temp path: ${tempPath}`);
+                        core.info(`Resolved dependency path for cache: ${resolvedDependencyPath}`);
+                    }
+                    else {
+                        yield fs_1.default.promises.copyFile(actionSourcePath, targetPath);
+                        resolvedDependencyPath = path
+                            .relative(workspace, targetPath)
+                            .replace(/\\/g, '/');
+                        core.info(`${targetExists ? 'Overwrote' : 'Copied'} action file to workspace: ${targetPath}`);
+                        core.info(`Resolved dependency path for cache: ${resolvedDependencyPath}`);
+                    }
                 }
                 catch (err) {
                     core.warning(`Failed to copy file from action to workspace: ${err}`);
