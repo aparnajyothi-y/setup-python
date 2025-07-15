@@ -30,32 +30,29 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
     const actionPath = process.env.GITHUB_ACTION_PATH || '';
 
     const sourcePath = path.resolve(actionPath, userInputPath);
-    const fileName = path.basename(userInputPath);
-    const targetDir = path.join(workspace, '.github', '_generated');
+    const fileExists = await fs.promises
+      .access(sourcePath, fs.constants.F_OK)
+      .then(() => true)
+      .catch(() => false);
 
-    try {
-      // Check if file exists in the action
-      await fs.promises.access(sourcePath, fs.constants.F_OK);
+    if (!fileExists) {
+      core.warning(`Dependency file not found in action: ${sourcePath}`);
+    } else {
+      try {
+        const generatedDir = path.join(workspace, '.github', '_generated');
+        await fs.promises.mkdir(generatedDir, { recursive: true });
 
-      // Ensure target directory exists
-      await fs.promises.mkdir(targetDir, {recursive: true});
+        const filename = path.basename(userInputPath);
+        const targetPath = path.join(generatedDir, filename);
 
-      // Always copy to a generated path (no overwrite check needed)
-      const targetPath = path.join(targetDir, fileName);
-      await fs.promises.copyFile(sourcePath, targetPath);
+        await fs.promises.copyFile(sourcePath, targetPath);
+        resolvedDependencyPath = path.relative(workspace, targetPath).replace(/\\/g, '/');
 
-      resolvedDependencyPath = path
-        .relative(workspace, targetPath)
-        .replace(/\\/g, '/');
-
-      core.info(`Copied ${sourcePath} → ${targetPath}`);
-      core.info(
-        `Resolved dependency path for cache: ${resolvedDependencyPath}`
-      );
-    } catch (err) {
-      core.warning(
-        `Failed to copy '${userInputPath}' from action to workspace: ${err}`
-      );
+        core.info(`Copied action file to workspace: ${targetPath}`);
+        core.info(`Resolved dependency path for cache: ${resolvedDependencyPath}`);
+      } catch (err) {
+        core.warning(`Failed to copy file from action to workspace: ${err}`);
+      }
     }
   }
 
@@ -68,6 +65,7 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
   );
   await cacheDistributor.restoreCache();
 }
+
 function resolveVersionInputFromDefaultFile(): string[] {
   const couples: [string, (versionFile: string) => string[]][] = [
     ['.python-version', getVersionsInputFromPlainFile]
