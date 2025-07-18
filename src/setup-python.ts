@@ -22,41 +22,76 @@ function isGraalPyVersion(versionSpec: string) {
   return versionSpec.startsWith('graalpy');
 }
 export async function cacheDependencies(cache: string, pythonVersion: string) {
-  const userInputPath = core.getInput('cache-dependency-path') || undefined;
-  let resolvedDependencyPath: string | undefined;
+  const cacheDependencyPath =
+    core.getInput('cache-dependency-path') || undefined;
+  let resolvedDependencyPath: string | undefined = undefined;
+  const overwrite = core.getBooleanInput('overwrite', {required: false});
 
-  if (userInputPath) {
-    const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
+  if (cacheDependencyPath) {
     const actionPath = process.env.GITHUB_ACTION_PATH || '';
+    const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
 
-    const sourcePath = path.resolve(actionPath, userInputPath);
-    const fileExists = await fs.promises
-      .access(sourcePath, fs.constants.F_OK)
-      .then(() => true)
-      .catch(() => false);
+    const sourcePath = path.resolve(actionPath, cacheDependencyPath);
+    const relativePath = path.relative(actionPath, sourcePath);
+    const targetPath = path.resolve(workspace, relativePath);
 
-    if (!fileExists) {
-      core.warning(`Dependency file not found in action: ${sourcePath}`);
-    } else {
-      try {
-        const generatedDir = path.join(workspace, '.github', '_generated');
-        await fs.promises.mkdir(generatedDir, { recursive: true });
+    try {
+      const sourceExists = await fs.promises
+        .access(sourcePath, fs.constants.F_OK)
+        .then(() => true)
+        .catch(() => false);
 
-        const filename = path.basename(userInputPath);
-        const targetPath = path.join(generatedDir, filename);
+      if (!sourceExists) {
+        core.warning(
+          `The resolved cache-dependency-path does not exist: ${sourcePath}`
+        );
+      } else {
+        if (sourcePath !== targetPath) {
+          const targetDir = path.dirname(targetPath);
+          await fs.promises.mkdir(targetDir, {recursive: true});
 
-        await fs.promises.copyFile(sourcePath, targetPath);
-        resolvedDependencyPath = path.relative(workspace, targetPath).replace(/\\/g, '/');
+          const targetExists = await fs.promises
+            .access(targetPath, fs.constants.F_OK)
+            .then(() => true)
+            .catch(() => false);
 
-        core.info(`Copied action file to workspace: ${targetPath}`);
-        core.info(`Resolved dependency path for cache: ${resolvedDependencyPath}`);
-      } catch (err) {
-        core.warning(`Failed to copy file from action to workspace: ${err}`);
+          if (targetExists && !overwrite) {
+            const filename = path.basename(cacheDependencyPath);
+            core.warning(
+              `A file named '${filename}' exists in both the composite action and the workspace. The file in the workspace will be used. To avoid ambiguity, consider renaming one of the files or setting 'overwrite: true'.`
+            );
+            core.info(
+              `Skipped copying ${sourcePath} — target already exists at ${targetPath}`
+            );
+          } else {
+            await fs.promises.copyFile(sourcePath, targetPath);
+            core.info(
+              `${targetExists ? 'Overwrote' : 'Copied'} ${sourcePath} to ${targetPath}`
+            );
+          }
+        } else {
+          core.info(
+            `Dependency file is already inside the workspace: ${sourcePath}`
+          );
+        }
+
+        resolvedDependencyPath = path
+          .relative(workspace, targetPath)
+          .replace(/\\/g, '/');
+        core.info(`Resolved cache-dependency-path: ${resolvedDependencyPath}`);
+
+ // Override the input so setup-python uses the copied file
+        process.env['INPUT_CACHE-DEPENDENCY-PATH'] = resolvedDependencyPath;
       }
+    } catch (error) {
+      core.warning(
+        `Failed to copy file from ${sourcePath} to ${targetPath}: ${error}`
+      );
     }
   }
 
-  const dependencyPathForCache = resolvedDependencyPath ?? userInputPath;
+  // Pass resolvedDependencyPath if available, else fallback to original input
+  const dependencyPathForCache = resolvedDependencyPath ?? cacheDependencyPath;
 
   const cacheDistributor = getCacheDistributor(
     cache,
