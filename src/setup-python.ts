@@ -6,7 +6,7 @@ import * as path from 'path';
 import * as os from 'os';
 import fs from 'fs';
 import {getCacheDistributor} from './cache-distributions/cache-factory';
-import { randomUUID } from 'crypto';
+import {randomUUID} from 'crypto';
 import {
   isCacheFeatureAvailable,
   logWarning,
@@ -62,13 +62,13 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
             workspace,
             `.tmp-cache-deps-${randomUUID().slice(0, 8)}`
           );
-          await fs.promises.mkdir(tempDir, { recursive: true });
+          await fs.promises.mkdir(tempDir, {recursive: true});
           targetPath = path.join(tempDir, filename);
         } else {
           // Default behavior — mirror directory structure from action
           const relativePath = path.relative(actionPath, sourcePath);
           targetPath = path.resolve(workspace, relativePath);
-          await fs.promises.mkdir(path.dirname(targetPath), { recursive: true });
+          await fs.promises.mkdir(path.dirname(targetPath), {recursive: true});
         }
 
         await fs.promises.copyFile(sourcePath, targetPath);
