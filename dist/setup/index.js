@@ -96931,7 +96931,21 @@ function cacheDependencies(cache, pythonVersion) {
                 core.warning(`Failed to copy file from ${sourcePath} to workspace: ${error}`);
             }
         }
+        // Prefer resolvedDependencyPath if set, else fallback to cacheDependencyPath
         const dependencyPathForCache = resolvedDependencyPath !== null && resolvedDependencyPath !== void 0 ? resolvedDependencyPath : cacheDependencyPath;
+        // Validate that the path exists before proceeding
+        const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
+        const absoluteDepPath = path.resolve(workspace, dependencyPathForCache || '');
+        const depExists = yield fs_1.default.promises
+            .access(absoluteDepPath, fs_1.default.constants.F_OK)
+            .then(() => true)
+            .catch(() => false);
+        if (!depExists) {
+            core.setFailed(`Dependency file does not exist at: ${dependencyPathForCache} (resolved to ${absoluteDepPath})`);
+            return;
+        }
+        // Set output for downstream workflow steps
+        core.setOutput('resolvedDependencyPath', dependencyPathForCache);
         const cacheDistributor = (0, cache_factory_1.getCacheDistributor)(cache, pythonVersion, dependencyPathForCache);
         yield cacheDistributor.restoreCache();
     });

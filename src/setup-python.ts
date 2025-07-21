@@ -86,7 +86,26 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
     }
   }
 
+  // Prefer resolvedDependencyPath if set, else fallback to cacheDependencyPath
   const dependencyPathForCache = resolvedDependencyPath ?? cacheDependencyPath;
+
+  // Validate that the path exists before proceeding
+  const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
+  const absoluteDepPath = path.resolve(workspace, dependencyPathForCache || '');
+  const depExists = await fs.promises
+    .access(absoluteDepPath, fs.constants.F_OK)
+    .then(() => true)
+    .catch(() => false);
+
+  if (!depExists) {
+    core.setFailed(
+      `Dependency file does not exist at: ${dependencyPathForCache} (resolved to ${absoluteDepPath})`
+    );
+    return;
+  }
+
+  // Set output for downstream workflow steps
+  core.setOutput('resolvedDependencyPath', dependencyPathForCache);
 
   const cacheDistributor = getCacheDistributor(
     cache,
@@ -95,7 +114,6 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
   );
   await cacheDistributor.restoreCache();
 }
-
 function resolveVersionInputFromDefaultFile(): string[] {
   const couples: [string, (versionFile: string) => string[]][] = [
     ['.python-version', getVersionsInputFromPlainFile]
