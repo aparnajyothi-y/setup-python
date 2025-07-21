@@ -412,7 +412,11 @@ steps:
 - run: pip install -e .
   # Or pip install -e '.[test]' to install test dependencies
 ```
-Note: cache-dependency-path supports files located outside the workspace root by copying them into the workspace to enable proper caching.
+Note:
+cache-dependency-path supports files located outside the workspace root by copying them into the workspace to enable proper caching.
+
+Additionally, if a dependency file (such as requirements.txt) with the same name already exists at the workspace root, the action avoids overwriting it by copying the incoming file to a uniquely named temporary directory within the workspace (e.g., .tmp-cache-deps-xxxx/requirements.txt). This ensures caching can proceed safely without interfering with user-managed files.
+
 # Outputs and environment variables
 
 ## Outputs
