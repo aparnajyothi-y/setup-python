@@ -31,7 +31,6 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
   if (cacheDependencyPath) {
     const actionPath = process.env.GITHUB_ACTION_PATH || '';
     const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
-
     const sourcePath = path.resolve(actionPath, cacheDependencyPath);
 
     try {
@@ -46,30 +45,12 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
         );
       } else {
         const filename = path.basename(sourcePath);
-        const workspaceConflictPath = path.resolve(workspace, filename);
-
-        let targetPath: string;
-
-        // Check for conflict at root of workspace
-        const conflictExists = await fs.promises
-          .access(workspaceConflictPath, fs.constants.F_OK)
-          .then(() => true)
-          .catch(() => false);
-
-        if (conflictExists) {
-          // Create a temporary unique folder inside workspace
-          const tempDir = path.join(
-            workspace,
-            `.tmp-cache-deps-${randomUUID().slice(0, 8)}`
-          );
-          await fs.promises.mkdir(tempDir, {recursive: true});
-          targetPath = path.join(tempDir, filename);
-        } else {
-          // Default behavior — mirror directory structure from action
-          const relativePath = path.relative(actionPath, sourcePath);
-          targetPath = path.resolve(workspace, relativePath);
-          await fs.promises.mkdir(path.dirname(targetPath), {recursive: true});
-        }
+        const tempDir = path.join(
+          workspace,
+          `.tmp-cache-deps-${randomUUID().slice(0, 8)}`
+        );
+        await fs.promises.mkdir(tempDir, {recursive: true});
+        const targetPath = path.join(tempDir, filename);
 
         await fs.promises.copyFile(sourcePath, targetPath);
         core.info(`Copied ${sourcePath} to ${targetPath}`);
@@ -86,10 +67,7 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
     }
   }
 
-  // Prefer resolvedDependencyPath if set, else fallback to cacheDependencyPath
   const dependencyPathForCache = resolvedDependencyPath ?? cacheDependencyPath;
-
-  // Validate that the path exists before proceeding
   const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
   const absoluteDepPath = path.resolve(workspace, dependencyPathForCache || '');
   const depExists = await fs.promises
@@ -104,7 +82,6 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
     return;
   }
 
-  // Set output for downstream workflow steps
   core.setOutput('resolvedDependencyPath', dependencyPathForCache);
 
   const cacheDistributor = getCacheDistributor(
@@ -114,6 +91,7 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
   );
   await cacheDistributor.restoreCache();
 }
+
 function resolveVersionInputFromDefaultFile(): string[] {
   const couples: [string, (versionFile: string) => string[]][] = [
     ['.python-version', getVersionsInputFromPlainFile]

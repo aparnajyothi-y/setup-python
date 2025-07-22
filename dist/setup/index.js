@@ -96900,25 +96900,9 @@ function cacheDependencies(cache, pythonVersion) {
                 }
                 else {
                     const filename = path.basename(sourcePath);
-                    const workspaceConflictPath = path.resolve(workspace, filename);
-                    let targetPath;
-                    // Check for conflict at root of workspace
-                    const conflictExists = yield fs_1.default.promises
-                        .access(workspaceConflictPath, fs_1.default.constants.F_OK)
-                        .then(() => true)
-                        .catch(() => false);
-                    if (conflictExists) {
-                        // Create a temporary unique folder inside workspace
-                        const tempDir = path.join(workspace, `.tmp-cache-deps-${(0, crypto_1.randomUUID)().slice(0, 8)}`);
-                        yield fs_1.default.promises.mkdir(tempDir, { recursive: true });
-                        targetPath = path.join(tempDir, filename);
-                    }
-                    else {
-                        // Default behavior — mirror directory structure from action
-                        const relativePath = path.relative(actionPath, sourcePath);
-                        targetPath = path.resolve(workspace, relativePath);
-                        yield fs_1.default.promises.mkdir(path.dirname(targetPath), { recursive: true });
-                    }
+                    const tempDir = path.join(workspace, `.tmp-cache-deps-${(0, crypto_1.randomUUID)().slice(0, 8)}`);
+                    yield fs_1.default.promises.mkdir(tempDir, { recursive: true });
+                    const targetPath = path.join(tempDir, filename);
                     yield fs_1.default.promises.copyFile(sourcePath, targetPath);
                     core.info(`Copied ${sourcePath} to ${targetPath}`);
                     resolvedDependencyPath = path
@@ -96931,9 +96915,7 @@ function cacheDependencies(cache, pythonVersion) {
                 core.warning(`Failed to copy file from ${sourcePath} to workspace: ${error}`);
             }
         }
-        // Prefer resolvedDependencyPath if set, else fallback to cacheDependencyPath
         const dependencyPathForCache = resolvedDependencyPath !== null && resolvedDependencyPath !== void 0 ? resolvedDependencyPath : cacheDependencyPath;
-        // Validate that the path exists before proceeding
         const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
         const absoluteDepPath = path.resolve(workspace, dependencyPathForCache || '');
         const depExists = yield fs_1.default.promises
@@ -96944,7 +96926,6 @@ function cacheDependencies(cache, pythonVersion) {
             core.setFailed(`Dependency file does not exist at: ${dependencyPathForCache} (resolved to ${absoluteDepPath})`);
             return;
         }
-        // Set output for downstream workflow steps
         core.setOutput('resolvedDependencyPath', dependencyPathForCache);
         const cacheDistributor = (0, cache_factory_1.getCacheDistributor)(cache, pythonVersion, dependencyPathForCache);
         yield cacheDistributor.restoreCache();
