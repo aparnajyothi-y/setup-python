@@ -24,8 +24,7 @@ function isGraalPyVersion(versionSpec: string) {
 }
 
 export async function cacheDependencies(cache: string, pythonVersion: string) {
-  const cacheDependencyPath =
-    core.getInput('cache-dependency-path') || undefined;
+  const cacheDependencyPath = core.getInput('cache-dependency-path') || undefined;
   let resolvedDependencyPath: string | undefined = undefined;
 
   if (cacheDependencyPath) {
@@ -49,15 +48,13 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
           workspace,
           `.tmp-cache-deps-${randomUUID().slice(0, 8)}`
         );
-        await fs.promises.mkdir(tempDir, {recursive: true});
+        await fs.promises.mkdir(tempDir, { recursive: true });
         const targetPath = path.join(tempDir, filename);
 
         await fs.promises.copyFile(sourcePath, targetPath);
         core.info(`Copied ${sourcePath} to ${targetPath}`);
 
-        resolvedDependencyPath = path
-          .relative(workspace, targetPath)
-          .replace(/\\/g, '/');
+        resolvedDependencyPath = path.relative(workspace, targetPath).replace(/\\/g, '/');
         core.info(`Resolved cache-dependency-path: ${resolvedDependencyPath}`);
       }
     } catch (error) {
@@ -67,8 +64,18 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
     }
   }
 
-  const dependencyPathForCache = resolvedDependencyPath ?? cacheDependencyPath;
   const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
+  let dependencyPathForCache: string | undefined;
+
+  if (resolvedDependencyPath) {
+    dependencyPathForCache = resolvedDependencyPath;
+  } else if (cacheDependencyPath) {
+    const absInputPath = path.isAbsolute(cacheDependencyPath)
+      ? cacheDependencyPath
+      : path.resolve(workspace, cacheDependencyPath);
+    dependencyPathForCache = path.relative(workspace, absInputPath).replace(/\\/g, '/');
+  }
+
   const absoluteDepPath = path.resolve(workspace, dependencyPathForCache || '');
   const depExists = await fs.promises
     .access(absoluteDepPath, fs.constants.F_OK)
