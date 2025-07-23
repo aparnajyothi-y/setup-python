@@ -24,12 +24,14 @@ function isGraalPyVersion(versionSpec: string) {
 }
 
 export async function cacheDependencies(cache: string, pythonVersion: string) {
-  const cacheDependencyPath = core.getInput('cache-dependency-path') || undefined;
+  const cacheDependencyPath =
+    core.getInput('cache-dependency-path') || undefined;
   let resolvedDependencyPath: string | undefined = undefined;
 
   if (cacheDependencyPath) {
     const actionPath = process.env.GITHUB_ACTION_PATH || '';
     const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
+
     const sourcePath = path.resolve(actionPath, cacheDependencyPath);
 
     try {
@@ -44,17 +46,38 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
         );
       } else {
         const filename = path.basename(sourcePath);
-        const tempDir = path.join(
-          workspace,
-          `.tmp-cache-deps-${randomUUID().slice(0, 8)}`
-        );
-        await fs.promises.mkdir(tempDir, { recursive: true });
-        const targetPath = path.join(tempDir, filename);
+        const workspaceConflictPath = path.resolve(workspace, filename);
+
+        let targetPath: string;
+
+        // Check for conflict at root of workspace
+        const conflictExists = await fs.promises
+          .access(workspaceConflictPath, fs.constants.F_OK)
+          .then(() => true)
+          .catch(() => false);
+
+        if (conflictExists) {
+          // Create a temporary unique folder inside workspace
+          const tempDir = path.join(
+            workspace,
+            `.tmp-cache-deps-${randomUUID().slice(0, 8)}`
+          );
+          await fs.promises.mkdir(tempDir, {recursive: true});
+          targetPath = path.join(tempDir, filename);
+        } else {
+          // Default behavior — mirror directory structure from action
+          const relativePath = path.relative(actionPath, sourcePath);
+          targetPath = path.resolve(workspace, relativePath);
+          await fs.promises.mkdir(path.dirname(targetPath), {recursive: true});
+        }
 
         await fs.promises.copyFile(sourcePath, targetPath);
         core.info(`Copied ${sourcePath} to ${targetPath}`);
 
-        resolvedDependencyPath = path.relative(workspace, targetPath).replace(/\\/g, '/');
+        resolvedDependencyPath = path
+          .relative(workspace, targetPath)
+          .replace(/\\/g, '/'); // Ensure forward slashes for consistency
+        resolvedDependencyPath = resolvedDependencyPath.replace(/:/g, ':/'); // Fix drive letter issue on Windows
         core.info(`Resolved cache-dependency-path: ${resolvedDependencyPath}`);
       }
     } catch (error) {
@@ -64,18 +87,11 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
     }
   }
 
+  // Prefer resolvedDependencyPath if set, else fallback to cacheDependencyPath
+  const dependencyPathForCache = resolvedDependencyPath ?? cacheDependencyPath;
+
+  // Validate that the path exists before proceeding
   const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
-  let dependencyPathForCache: string | undefined;
-
-  if (resolvedDependencyPath) {
-    dependencyPathForCache = resolvedDependencyPath;
-  } else if (cacheDependencyPath) {
-    const absInputPath = path.isAbsolute(cacheDependencyPath)
-      ? cacheDependencyPath
-      : path.resolve(workspace, cacheDependencyPath);
-    dependencyPathForCache = path.relative(workspace, absInputPath).replace(/\\/g, '/');
-  }
-
   const absoluteDepPath = path.resolve(workspace, dependencyPathForCache || '');
   const depExists = await fs.promises
     .access(absoluteDepPath, fs.constants.F_OK)
@@ -89,6 +105,7 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
     return;
   }
 
+  // Set output for downstream workflow steps
   core.setOutput('resolvedDependencyPath', dependencyPathForCache);
 
   const cacheDistributor = getCacheDistributor(
@@ -98,7 +115,6 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
   );
   await cacheDistributor.restoreCache();
 }
-
 function resolveVersionInputFromDefaultFile(): string[] {
   const couples: [string, (versionFile: string) => string[]][] = [
     ['.python-version', getVersionsInputFromPlainFile]
