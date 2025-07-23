@@ -96923,8 +96923,7 @@ function cacheDependencies(cache, pythonVersion) {
                     core.info(`Copied ${sourcePath} to ${targetPath}`);
                     resolvedDependencyPath = path
                         .relative(workspace, targetPath)
-                        .replace(/\\/g, '/'); // Ensure forward slashes for consistency
-                    resolvedDependencyPath = resolvedDependencyPath.replace(/:/g, ':/'); // Fix drive letter issue on Windows
+                        .replace(/\\/g, '/');
                     core.info(`Resolved cache-dependency-path: ${resolvedDependencyPath}`);
                 }
             }
