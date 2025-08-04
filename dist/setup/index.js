@@ -98470,7 +98470,9 @@ exports.getVersionInputFromFile = getVersionInputFromFile;
  *  - On Windows, it is in the installation root.
  */
 function getBinaryDirectory(installDir) {
-    return exports.IS_WINDOWS ? installDir : path.join(installDir, 'bin');
+    return exports.IS_WINDOWS
+        ? path.join(installDir, 'bin', 'graalpy.exe')
+        : path.join(installDir, 'bin');
 }
 exports.getBinaryDirectory = getBinaryDirectory;
 /**

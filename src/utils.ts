@@ -384,7 +384,9 @@ export function getVersionInputFromFile(versionFile: string): string[] {
  *  - On Windows, it is in the installation root.
  */
 export function getBinaryDirectory(installDir: string) {
-  return IS_WINDOWS ? installDir : path.join(installDir, 'bin');
+  return IS_WINDOWS
+    ? path.join(installDir, 'bin', 'graalpy.exe')
+    : path.join(installDir, 'bin');
 }
 
 /**
