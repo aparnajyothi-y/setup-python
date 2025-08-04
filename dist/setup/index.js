@@ -97349,7 +97349,12 @@ function installGraalPy(graalpyVersion, architecture, allowPreReleases, releases
         try {
             const graalpyPath = yield tc.downloadTool(downloadUrl, undefined, AUTH);
             core.info('Extracting downloaded archive...');
-            downloadDir = yield tc.extractTar(graalpyPath);
+            if (utils_1.IS_WINDOWS) {
+                downloadDir = yield tc.extractZip(graalpyPath);
+            }
+            else {
+                downloadDir = yield tc.extractTar(graalpyPath);
+            }
             // root folder in archive can have unpredictable name so just take the first folder
             // downloadDir is unique folder under TEMP and can't contain any other folders
             const archiveName = fs_1.default.readdirSync(downloadDir)[0];
@@ -97478,8 +97483,9 @@ exports.toGraalPyArchitecture = toGraalPyArchitecture;
 function findAsset(item, architecture, platform) {
     const graalpyArch = toGraalPyArchitecture(architecture);
     const graalpyPlatform = toGraalPyPlatform(platform);
+    const extension = platform === 'win32' ? '.zip' : '.tar.gz';
     const found = item.assets.filter(file => file.name.startsWith('graalpy') &&
-        file.name.endsWith(`-${graalpyPlatform}-${graalpyArch}.tar.gz`));
+        file.name.endsWith(`-${graalpyPlatform}-${graalpyArch}${extension}`));
     /*
     In the future there could be more variants of GraalPy for a single release. Pick the shortest name, that one is the most likely to be the primary variant.
     */
