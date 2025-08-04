@@ -97416,9 +97416,9 @@ function createGraalPySymlink(graalpyBinaryPath, graalpyVersion) {
         const graalpyMajorMinorBinaryPostfix = `${pythonBinaryPostfix}.${pythonMinor}`;
         const binaryExtension = utils_1.IS_WINDOWS ? '.exe' : '';
         core.info('Creating symlinks...');
-        (0, utils_1.createSymlinkInFolder)(graalpyBinaryPath, `graalpy${binaryExtension}`, `python${pythonBinaryPostfix}${binaryExtension}`, true);
-        (0, utils_1.createSymlinkInFolder)(graalpyBinaryPath, `graalpy${binaryExtension}`, `python${binaryExtension}`, true);
-        (0, utils_1.createSymlinkInFolder)(graalpyBinaryPath, `graalpy${binaryExtension}`, `graalpy${graalpyMajorMinorBinaryPostfix}${binaryExtension}`, true);
+        yield (0, utils_1.createSymlinkInFolder)(graalpyBinaryPath, `graalpy${binaryExtension}`, `python${pythonBinaryPostfix}${binaryExtension}`, true);
+        yield (0, utils_1.createSymlinkInFolder)(graalpyBinaryPath, `graalpy${binaryExtension}`, `python${binaryExtension}`, true);
+        yield (0, utils_1.createSymlinkInFolder)(graalpyBinaryPath, `graalpy${binaryExtension}`, `graalpy${graalpyMajorMinorBinaryPostfix}${binaryExtension}`, true);
     });
 }
 function installPip(pythonLocation) {

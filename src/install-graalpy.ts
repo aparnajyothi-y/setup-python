@@ -148,21 +148,21 @@ async function createGraalPySymlink(
   const binaryExtension = IS_WINDOWS ? '.exe' : '';
 
   core.info('Creating symlinks...');
-  createSymlinkInFolder(
+  await createSymlinkInFolder(
     graalpyBinaryPath,
     `graalpy${binaryExtension}`,
     `python${pythonBinaryPostfix}${binaryExtension}`,
     true
   );
 
-  createSymlinkInFolder(
+  await createSymlinkInFolder(
     graalpyBinaryPath,
     `graalpy${binaryExtension}`,
     `python${binaryExtension}`,
     true
   );
 
-  createSymlinkInFolder(
+  await createSymlinkInFolder(
     graalpyBinaryPath,
     `graalpy${binaryExtension}`,
     `graalpy${graalpyMajorMinorBinaryPostfix}${binaryExtension}`,
