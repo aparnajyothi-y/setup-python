@@ -6,6 +6,7 @@ import * as path from 'path';
 import * as os from 'os';
 import fs from 'fs';
 import {getCacheDistributor} from './cache-distributions/cache-factory';
+import {randomUUID} from 'crypto';
 import {
   isCacheFeatureAvailable,
   logWarning,
@@ -32,8 +33,6 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
     const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
 
     const sourcePath = path.resolve(actionPath, cacheDependencyPath);
-    const relativePath = path.relative(actionPath, sourcePath);
-    const targetPath = path.resolve(workspace, relativePath);
 
     try {
       const sourceExists = await fs.promises
@@ -46,19 +45,34 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
           `The resolved cache-dependency-path does not exist: ${sourcePath}`
         );
       } else {
-        if (sourcePath !== targetPath) {
-          const targetDir = path.dirname(targetPath);
-          // Create target directory if it doesn't exist
-          await fs.promises.mkdir(targetDir, {recursive: true});
-          // Copy file asynchronously
-          await fs.promises.copyFile(sourcePath, targetPath);
-          core.info(`Copied ${sourcePath} to ${targetPath}`);
-        } else {
-          core.info(
-            `Dependency file is already inside the workspace: ${sourcePath}`
+        const filename = path.basename(sourcePath);
+        const workspaceConflictPath = path.resolve(workspace, filename);
+
+        let targetPath: string;
+
+        // Check for conflict at root of workspace
+        const conflictExists = await fs.promises
+          .access(workspaceConflictPath, fs.constants.F_OK)
+          .then(() => true)
+          .catch(() => false);
+
+        if (conflictExists) {
+          // Create a temporary unique folder inside workspace
+          const tempDir = path.join(
+            workspace,
+            `.tmp-cache-deps-${randomUUID().slice(0, 8)}`
           );
+          await fs.promises.mkdir(tempDir, {recursive: true});
+          targetPath = path.join(tempDir, filename);
+        } else {
+          // Default behavior — mirror directory structure from action
+          const relativePath = path.relative(actionPath, sourcePath);
+          targetPath = path.resolve(workspace, relativePath);
+          await fs.promises.mkdir(path.dirname(targetPath), {recursive: true});
         }
 
+        await fs.promises.copyFile(sourcePath, targetPath);
+        core.info(`Copied ${sourcePath} to ${targetPath}`);
         resolvedDependencyPath = path
           .relative(workspace, targetPath)
           .replace(/\\/g, '/');
@@ -66,13 +80,31 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
       }
     } catch (error) {
       core.warning(
-        `Failed to copy file from ${sourcePath} to ${targetPath}: ${error}`
+        `Failed to copy file from ${sourcePath} to workspace: ${error}`
       );
     }
   }
 
-  // Pass resolvedDependencyPath if available, else fallback to original input
+  // Prefer resolvedDependencyPath if set, else fallback to cacheDependencyPath
   const dependencyPathForCache = resolvedDependencyPath ?? cacheDependencyPath;
+
+  // Validate that the path exists before proceeding
+  const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
+  const absoluteDepPath = path.resolve(workspace, dependencyPathForCache || '');
+  const depExists = await fs.promises
+    .access(absoluteDepPath, fs.constants.F_OK)
+    .then(() => true)
+    .catch(() => false);
+
+  if (!depExists) {
+    core.setFailed(
+      `Dependency file does not exist at: ${dependencyPathForCache} (resolved to ${absoluteDepPath})`
+    );
+    return;
+  }
+
+  // Set output for downstream workflow steps
+  core.setOutput('resolvedDependencyPath', dependencyPathForCache);
 
   const cacheDistributor = getCacheDistributor(
     cache,
@@ -81,7 +113,6 @@ export async function cacheDependencies(cache: string, pythonVersion: string) {
   );
   await cacheDistributor.restoreCache();
 }
-
 function resolveVersionInputFromDefaultFile(): string[] {
   const couples: [string, (versionFile: string) => string[]][] = [
     ['.python-version', getVersionsInputFromPlainFile]
