@@ -44,7 +44,7 @@ jobs:
           ]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup Python
         uses: ./
         with:
@@ -52,8 +52,14 @@ jobs:
           cache: 'pip'
       - name: Install dependencies
         run: |
-          # Use a stable NumPy version that has prebuilt wheels for PyPy on all OSes
-          pip install "numpy<2.1" pandas requests
+            if [[ "${{ matrix.python-version }}" == pypy* && "${{ runner.os }}" == "macOS" ]]; then
+              echo "Skipping NumPy on PyPy + macOS (no prebuilt wheels available)"
+              pip install pandas requests
+            elif [[ "${{ matrix.python-version }}" == pypy* ]]; then
+              pip install "numpy<2.0" pandas requests
+            else
+              pip install numpy pandas requests
+            fi
 
   python-pipenv-dependencies-caching:
     name: Test pipenv (Python ${{ matrix.python-version}}, ${{ matrix.os }})
