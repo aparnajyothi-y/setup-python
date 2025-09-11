@@ -50,16 +50,12 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
-      - name: Install dependencies
+
+      - name: Upgrade pip, setuptools, and wheel
         run: |
-            if [[ "${{ matrix.python-version }}" == pypy* && "${{ runner.os }}" == "macOS" ]]; then
-              echo "Skipping NumPy on PyPy + macOS (no prebuilt wheels available)"
-              pip install pandas requests
-            elif [[ "${{ matrix.python-version }}" == pypy* ]]; then
-              pip install "numpy<2.0" pandas requests
-            else
-              pip install numpy pandas requests
-            fi
+            python -m pip install --upgrade pip setuptools wheel
+      - name: Install dependencies
+        run: pip install numpy pandas requests
 
   python-pipenv-dependencies-caching:
     name: Test pipenv (Python ${{ matrix.python-version}}, ${{ matrix.os }})
