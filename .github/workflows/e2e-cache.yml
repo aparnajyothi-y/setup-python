@@ -304,4 +304,4 @@ jobs:
           cache-dependency-path: __tests__/data/requirements.txt
           pip-version: '25.0.1'
       - name: Install dependencies
-        run: pip install numpy pandas requests
+        run: pip install "numpy==1.26.4" pandas requests
