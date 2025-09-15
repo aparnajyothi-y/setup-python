@@ -51,11 +51,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
 
-      - name: Upgrade pip, setuptools, and wheel
-        run: |
-            python -m pip install --upgrade pip setuptools wheel
       - name: Install dependencies
-        run: pip install "numpy<1.25" pandas requests
+        run: pip install "numpy==1.26.4" pandas requests
 
   python-pipenv-dependencies-caching:
     name: Test pipenv (Python ${{ matrix.python-version}}, ${{ matrix.os }})
