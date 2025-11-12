@@ -38,7 +38,6 @@ export async function installGraalPy(
   let releaseData = findRelease(releases, graalpyVersion, architecture, false);
 
   if (allowPreReleases && (!releaseData || !releaseData.foundAsset)) {
-    // check for pre-release
     core.info(
       [
         `Stable GraalPy version ${graalpyVersion} with arch ${architecture} not found`,
@@ -69,12 +68,11 @@ export async function installGraalPy(
       downloadDir = await tc.extractTar(graalpyPath);
     }
 
-    // root folder in archive can have unpredictable name so just take the first folder
-    // downloadDir is unique folder under TEMP and can't contain any other folders
+    // folder name in archive is unpredictable
     const archiveName = fs.readdirSync(downloadDir)[0];
-
     const toolDir = path.join(downloadDir, archiveName);
     let installDir = toolDir;
+
     if (!isNightlyKeyword(resolvedGraalPyVersion)) {
       installDir = await tc.cacheDir(
         toolDir,
@@ -91,21 +89,77 @@ export async function installGraalPy(
     return {installDir, resolvedGraalPyVersion};
   } catch (err) {
     if (err instanceof Error) {
-      // Rate limit?
-      if (
+      const isRateLimit =
         err instanceof tc.HTTPError &&
-        (err.httpStatusCode === 403 || err.httpStatusCode === 429)
-      ) {
-        core.info(
-          `Received HTTP status code ${err.httpStatusCode}.  This usually indicates the rate limit has been exceeded`
+        (err.httpStatusCode === 403 || err.httpStatusCode === 429);
+
+      if (isRateLimit) {
+        core.warning(
+          `Rate limit or restricted access response received: HTTP ${err.httpStatusCode}`
         );
-      } else {
-        core.info(err.message);
+
+        let lastStatus: number | undefined;
+
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          core.info(`Retry attempt ${attempt} of 3 due to rate limit...`);
+          await new Promise(res => setTimeout(res, 2000 * attempt));
+
+          try {
+            const retryPath = await tc.downloadTool(
+              downloadUrl,
+              undefined,
+              AUTH
+            );
+            core.info(`Retry succeeded.`);
+
+            // Extract retry archive
+            let retryExtractDir;
+            if (IS_WINDOWS) {
+              retryExtractDir = await tc.extractZip(retryPath);
+            } else {
+              retryExtractDir = await tc.extractTar(retryPath);
+            }
+
+            const archiveName = fs.readdirSync(retryExtractDir)[0];
+            const toolDir = path.join(retryExtractDir, archiveName);
+            let installDir = toolDir;
+
+            if (!isNightlyKeyword(resolvedGraalPyVersion)) {
+              installDir = await tc.cacheDir(
+                toolDir,
+                'GraalPy',
+                resolvedGraalPyVersion,
+                architecture
+              );
+            }
+
+            const binaryPath = path.join(installDir, 'bin');
+            await createGraalPySymlink(binaryPath, resolvedGraalPyVersion);
+            await installPip(binaryPath);
+
+            return {installDir, resolvedGraalPyVersion};
+          } catch (retryErr) {
+            if (retryErr instanceof tc.HTTPError) {
+              lastStatus = retryErr.httpStatusCode;
+              core.warning(`Retry ${attempt} failed. HTTP ${lastStatus}`);
+            } else {
+              core.warning(`Retry ${attempt} failed: ${retryErr}`);
+            }
+
+            if (attempt === 3) {
+              core.error(
+                `All retries failed. Last HTTP status code: ${lastStatus ?? 'unknown'}`
+              );
+              throw retryErr;
+            }
+          }
+        }
       }
-      if (err.stack !== undefined) {
-        core.debug(err.stack);
-      }
+
+      core.info(err.message);
+      if (err.stack) core.debug(err.stack);
     }
+
     throw err;
   }
 }
