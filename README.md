@@ -11,6 +11,13 @@ This action provides the following functionality for GitHub Actions users:
 - Optionally caching dependencies for pip, pipenv and poetry
 - Registering problem matchers for error output
 
+## Breaking changes in V6
+
+- Upgraded action from node20 to node24
+  > Make sure your runner is on version v2.327.1 or later to ensure compatibility with this release. See [Release Notes](https://github.com/actions/runner/releases/tag/v2.327.1)
+
+For more details,  see the full release notes on the [releases page](https://github.com/actions/setup-python/releases/tag/v6.0.0)
+
 ## Basic usage
 
 See [action.yml](action.yml)
@@ -18,8 +25,8 @@ See [action.yml](action.yml)
 **Python**
 ```yaml
 steps:
-- uses: actions/checkout@v4
-- uses: actions/setup-python@v5
+- uses: actions/checkout@v5
+- uses: actions/setup-python@v6
   with:
     python-version: '3.13' 
 - run: python my_script.py
@@ -28,8 +35,8 @@ steps:
 **PyPy**
 ```yaml
 steps:
-- uses: actions/checkout@v4
-- uses: actions/setup-python@v5 
+- uses: actions/checkout@v5
+- uses: actions/setup-python@v6 
   with:
     python-version: 'pypy3.10' 
 - run: python my_script.py
@@ -38,8 +45,8 @@ steps:
 **GraalPy**
 ```yaml
 steps:
-- uses: actions/checkout@v4
-- uses: actions/setup-python@v5 
+- uses: actions/checkout@v5
+- uses: actions/setup-python@v6 
   with:
     python-version: 'graalpy-24.0' 
 - run: python my_script.py
@@ -48,8 +55,8 @@ steps:
 **Free threaded Python**
 ```yaml
 steps:
-- uses: actions/checkout@v4
-- uses: actions/setup-python@v5
+- uses: actions/checkout@v5
+- uses: actions/setup-python@v6
   with:
     python-version: '3.13t'
 - run: python my_script.py
@@ -83,8 +90,8 @@ The action defaults to searching for a dependency file (`requirements.txt` or `p
 
 ```yaml
 steps:
-- uses: actions/checkout@v4
-- uses: actions/setup-python@v5
+- uses: actions/checkout@v5
+- uses: actions/setup-python@v6
   with:
     python-version: '3.13'
     cache: 'pip' # caching pip dependencies
@@ -111,6 +118,7 @@ See examples of using `cache` and `cache-dependency-path` for `pipenv` and `poet
 - [Using `setup-python` on GHES](docs/advanced-usage.md#using-setup-python-on-ghes)
 - [Allow pre-releases](docs/advanced-usage.md#allow-pre-releases)
 - [Using the pip-version input](docs/advanced-usage.md#using-the-pip-version-input)
+- [Using the pip-install input](docs/advanced-usage.md#using-the-pip-install-input)
 
 ## Recommended permissions
 
