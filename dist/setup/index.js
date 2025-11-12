@@ -97333,7 +97333,6 @@ function installGraalPy(graalpyVersion, architecture, allowPreReleases, releases
         }
         let releaseData = findRelease(releases, graalpyVersion, architecture, false);
         if (allowPreReleases && (!releaseData || !releaseData.foundAsset)) {
-            // check for pre-release
             core.info([
                 `Stable GraalPy version ${graalpyVersion} with arch ${architecture} not found`,
                 `Trying pre-release versions`
@@ -97346,36 +97345,64 @@ function installGraalPy(graalpyVersion, architecture, allowPreReleases, releases
         const { foundAsset, resolvedGraalPyVersion } = releaseData;
         const downloadUrl = `${foundAsset.browser_download_url}`;
         core.info(`Downloading GraalPy from "${downloadUrl}" ...`);
+        function performInstall(downloadPath) {
+            return __awaiter(this, void 0, void 0, function* () {
+                core.info('Extracting downloaded archive...');
+                if (utils_1.IS_WINDOWS) {
+                    downloadDir = yield tc.extractZip(downloadPath);
+                }
+                else {
+                    downloadDir = yield tc.extractTar(downloadPath);
+                }
+                const archiveName = fs_1.default.readdirSync(downloadDir)[0];
+                const toolDir = path.join(downloadDir, archiveName);
+                let installDir = toolDir;
+                if (!(0, utils_1.isNightlyKeyword)(resolvedGraalPyVersion)) {
+                    installDir = yield tc.cacheDir(toolDir, 'GraalPy', resolvedGraalPyVersion, architecture);
+                }
+                const binaryPath = (0, utils_1.getBinaryDirectory)(installDir);
+                yield createGraalPySymlink(binaryPath, resolvedGraalPyVersion);
+                yield installPip(binaryPath);
+                return { installDir, resolvedGraalPyVersion };
+            });
+        }
         try {
             const graalpyPath = yield tc.downloadTool(downloadUrl, undefined, AUTH);
-            core.info('Extracting downloaded archive...');
-            downloadDir = yield tc.extractTar(graalpyPath);
-            // root folder in archive can have unpredictable name so just take the first folder
-            // downloadDir is unique folder under TEMP and can't contain any other folders
-            const archiveName = fs_1.default.readdirSync(downloadDir)[0];
-            const toolDir = path.join(downloadDir, archiveName);
-            let installDir = toolDir;
-            if (!(0, utils_1.isNightlyKeyword)(resolvedGraalPyVersion)) {
-                installDir = yield tc.cacheDir(toolDir, 'GraalPy', resolvedGraalPyVersion, architecture);
-            }
-            const binaryPath = (0, utils_1.getBinaryDirectory)(installDir);
-            yield createGraalPySymlink(binaryPath, resolvedGraalPyVersion);
-            yield installPip(binaryPath);
-            return { installDir, resolvedGraalPyVersion };
+            return yield performInstall(graalpyPath);
         }
         catch (err) {
             if (err instanceof Error) {
-                // Rate limit?
-                if (err instanceof tc.HTTPError &&
-                    (err.httpStatusCode === 403 || err.httpStatusCode === 429)) {
-                    core.info(`Received HTTP status code ${err.httpStatusCode}.  This usually indicates the rate limit has been exceeded`);
+                const isRateLimit = err instanceof tc.HTTPError &&
+                    (err.httpStatusCode === 403 || err.httpStatusCode === 429);
+                if (isRateLimit) {
+                    core.warning(`Rate limit or restricted access response received: HTTP ${err.httpStatusCode}`);
+                    let lastStatus;
+                    for (let attempt = 1; attempt <= 3; attempt++) {
+                        core.info(`Retry attempt ${attempt} of 3 due to rate limit...`);
+                        yield new Promise(res => setTimeout(res, 2000 * attempt));
+                        try {
+                            const retryPath = yield tc.downloadTool(downloadUrl, undefined, AUTH);
+                            core.info(`Retry succeeded.`);
+                            return yield performInstall(retryPath);
+                        }
+                        catch (retryErr) {
+                            if (retryErr instanceof tc.HTTPError) {
+                                lastStatus = retryErr.httpStatusCode;
+                                core.warning(`Retry ${attempt} failed. HTTP ${lastStatus}`);
+                            }
+                            else {
+                                core.warning(`Retry ${attempt} failed: ${retryErr}`);
+                            }
+                            if (attempt === 3) {
+                                core.error(`All retries failed. Last HTTP status code: ${lastStatus !== null && lastStatus !== void 0 ? lastStatus : 'unknown'}`);
+                                throw retryErr;
+                            }
+                        }
+                    }
                 }
-                else {
-                    core.info(err.message);
-                }
-                if (err.stack !== undefined) {
+                core.info(err.message);
+                if (err.stack)
                     core.debug(err.stack);
-                }
             }
             throw err;
         }
