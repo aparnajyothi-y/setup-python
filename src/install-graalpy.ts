@@ -21,7 +21,6 @@ import {
 
 const TOKEN = core.getInput('token');
 const AUTH = !TOKEN ? undefined : `token ${TOKEN}`;
-
 export async function installGraalPy(
   graalpyVersion: string,
   architecture: string,
@@ -31,7 +30,6 @@ export async function installGraalPy(
   let downloadDir;
 
   releases = releases ?? (await getAvailableGraalPyVersions());
-
   if (!releases || !releases.length) {
     throw new Error('No release was found in GraalPy version.json');
   }
@@ -39,7 +37,6 @@ export async function installGraalPy(
   let releaseData = findRelease(releases, graalpyVersion, architecture, false);
 
   if (allowPreReleases && (!releaseData || !releaseData.foundAsset)) {
-    // check for pre-release
     core.info(
       [
         `Stable GraalPy version ${graalpyVersion} with arch ${architecture} not found`,
@@ -60,17 +57,18 @@ export async function installGraalPy(
 
   core.info(`Downloading GraalPy from "${downloadUrl}" ...`);
 
-  try {
-    const graalpyPath = await tc.downloadTool(downloadUrl, undefined, AUTH);
-
+  async function performInstall(downloadPath: string) {
     core.info('Extracting downloaded archive...');
-    downloadDir = await tc.extractTar(graalpyPath);
 
-    // root folder in archive can have unpredictable name so just take the first folder
-    // downloadDir is unique folder under TEMP and can't contain any other folders
+    if (IS_WINDOWS) {
+      downloadDir = await tc.extractZip(downloadPath);
+    } else {
+      downloadDir = await tc.extractTar(downloadPath);
+    }
+
     const archiveName = fs.readdirSync(downloadDir)[0];
-
     const toolDir = path.join(downloadDir, archiveName);
+
     let installDir = toolDir;
     if (!isNightlyKeyword(resolvedGraalPyVersion)) {
       installDir = await tc.cacheDir(
@@ -86,23 +84,61 @@ export async function installGraalPy(
     await installPip(binaryPath);
 
     return {installDir, resolvedGraalPyVersion};
+  }
+
+  try {
+    const graalpyPath = await tc.downloadTool(downloadUrl, undefined, AUTH);
+    return await performInstall(graalpyPath);
   } catch (err) {
     if (err instanceof Error) {
-      // Rate limit?
-      if (
+      const isRateLimit =
         err instanceof tc.HTTPError &&
-        (err.httpStatusCode === 403 || err.httpStatusCode === 429)
-      ) {
-        core.info(
-          `Received HTTP status code ${err.httpStatusCode}.  This usually indicates the rate limit has been exceeded`
+        (err.httpStatusCode === 403 || err.httpStatusCode === 429);
+
+      if (isRateLimit) {
+        core.warning(
+          `Rate limit or restricted access response received: HTTP ${err.httpStatusCode}`
         );
-      } else {
-        core.info(err.message);
+
+        let lastStatus: number | undefined;
+
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          core.info(`Retry attempt ${attempt} of 3 due to rate limit...`);
+          await new Promise(res => setTimeout(res, 2000 * attempt));
+
+          try {
+            const retryPath = await tc.downloadTool(
+              downloadUrl,
+              undefined,
+              AUTH
+            );
+            core.info(`Retry succeeded.`);
+
+            return await performInstall(retryPath);
+          } catch (retryErr) {
+            if (retryErr instanceof tc.HTTPError) {
+              lastStatus = retryErr.httpStatusCode;
+              core.warning(`Retry ${attempt} failed. HTTP ${lastStatus}`);
+            } else {
+              core.warning(`Retry ${attempt} failed: ${retryErr}`);
+            }
+
+            if (attempt === 3) {
+              core.error(
+                `All retries failed. Last HTTP status code: ${
+                  lastStatus ?? 'unknown'
+                }`
+              );
+              throw retryErr;
+            }
+          }
+        }
       }
-      if (err.stack !== undefined) {
-        core.debug(err.stack);
-      }
+
+      core.info(err.message);
+      if (err.stack) core.debug(err.stack);
     }
+
     throw err;
   }
 }
