@@ -97345,30 +97345,26 @@ function installGraalPy(graalpyVersion, architecture, allowPreReleases, releases
         const { foundAsset, resolvedGraalPyVersion } = releaseData;
         const downloadUrl = `${foundAsset.browser_download_url}`;
         core.info(`Downloading GraalPy from "${downloadUrl}" ...`);
-        function performInstall(downloadPath) {
-            return __awaiter(this, void 0, void 0, function* () {
-                core.info('Extracting downloaded archive...');
-                if (utils_1.IS_WINDOWS) {
-                    downloadDir = yield tc.extractZip(downloadPath);
-                }
-                else {
-                    downloadDir = yield tc.extractTar(downloadPath);
-                }
-                const archiveName = fs_1.default.readdirSync(downloadDir)[0];
-                const toolDir = path.join(downloadDir, archiveName);
-                let installDir = toolDir;
-                if (!(0, utils_1.isNightlyKeyword)(resolvedGraalPyVersion)) {
-                    installDir = yield tc.cacheDir(toolDir, 'GraalPy', resolvedGraalPyVersion, architecture);
-                }
-                const binaryPath = (0, utils_1.getBinaryDirectory)(installDir);
-                yield createGraalPySymlink(binaryPath, resolvedGraalPyVersion);
-                yield installPip(binaryPath);
-                return { installDir, resolvedGraalPyVersion };
-            });
-        }
         try {
             const graalpyPath = yield tc.downloadTool(downloadUrl, undefined, AUTH);
-            return yield performInstall(graalpyPath);
+            core.info('Extracting downloaded archive...');
+            if (utils_1.IS_WINDOWS) {
+                downloadDir = yield tc.extractZip(graalpyPath);
+            }
+            else {
+                downloadDir = yield tc.extractTar(graalpyPath);
+            }
+            // folder name in archive is unpredictable
+            const archiveName = fs_1.default.readdirSync(downloadDir)[0];
+            const toolDir = path.join(downloadDir, archiveName);
+            let installDir = toolDir;
+            if (!(0, utils_1.isNightlyKeyword)(resolvedGraalPyVersion)) {
+                installDir = yield tc.cacheDir(toolDir, 'GraalPy', resolvedGraalPyVersion, architecture);
+            }
+            const binaryPath = path.join(installDir, 'bin');
+            yield createGraalPySymlink(binaryPath, resolvedGraalPyVersion);
+            yield installPip(binaryPath);
+            return { installDir, resolvedGraalPyVersion };
         }
         catch (err) {
             if (err instanceof Error) {
@@ -97383,7 +97379,24 @@ function installGraalPy(graalpyVersion, architecture, allowPreReleases, releases
                         try {
                             const retryPath = yield tc.downloadTool(downloadUrl, undefined, AUTH);
                             core.info(`Retry succeeded.`);
-                            return yield performInstall(retryPath);
+                            // Extract retry archive
+                            let retryExtractDir;
+                            if (utils_1.IS_WINDOWS) {
+                                retryExtractDir = yield tc.extractZip(retryPath);
+                            }
+                            else {
+                                retryExtractDir = yield tc.extractTar(retryPath);
+                            }
+                            const archiveName = fs_1.default.readdirSync(retryExtractDir)[0];
+                            const toolDir = path.join(retryExtractDir, archiveName);
+                            let installDir = toolDir;
+                            if (!(0, utils_1.isNightlyKeyword)(resolvedGraalPyVersion)) {
+                                installDir = yield tc.cacheDir(toolDir, 'GraalPy', resolvedGraalPyVersion, architecture);
+                            }
+                            const binaryPath = path.join(installDir, 'bin');
+                            yield createGraalPySymlink(binaryPath, resolvedGraalPyVersion);
+                            yield installPip(binaryPath);
+                            return { installDir, resolvedGraalPyVersion };
                         }
                         catch (retryErr) {
                             if (retryErr instanceof tc.HTTPError) {
@@ -97416,8 +97429,24 @@ function getAvailableGraalPyVersions() {
         if (AUTH) {
             headers.authorization = AUTH;
         }
+        /*
+        Get releases first.
+        */
         let url = 'https://api.github.com/repos/oracle/graalpython/releases';
         const result = [];
+        do {
+            const response = yield http.getJson(url, headers);
+            if (!response.result) {
+                throw new Error(`Unable to retrieve the list of available GraalPy versions from '${url}'`);
+            }
+            result.push(...response.result);
+            url = (0, utils_1.getNextPageUrl)(response);
+        } while (url);
+        /*
+        Add pre-release builds.
+        */
+        url =
+            'https://api.github.com/repos/graalvm/graal-languages-ea-builds/releases';
         do {
             const response = yield http.getJson(url, headers);
             if (!response.result) {
@@ -97451,7 +97480,7 @@ function installPip(pythonLocation) {
     });
 }
 function graalPyTagToVersion(tag) {
-    const versionPattern = /.*-(\d+\.\d+\.\d+(?:\.\d+)?)((?:a|b|rc))?(\d*)?/;
+    const versionPattern = /.*-(\d+\.\d+\.\d+(?:\.\d+)?)(?:-((?:ea|a|b|rc))\.0*(\d+))?/;
     const match = tag.match(versionPattern);
     if (match && match[2]) {
         return `${match[1]}-${match[2]}.${match[3]}`;
@@ -97505,8 +97534,9 @@ exports.toGraalPyArchitecture = toGraalPyArchitecture;
 function findAsset(item, architecture, platform) {
     const graalpyArch = toGraalPyArchitecture(architecture);
     const graalpyPlatform = toGraalPyPlatform(platform);
+    const graalpyExt = platform == 'win32' ? 'zip' : 'tar.gz';
     const found = item.assets.filter(file => file.name.startsWith('graalpy') &&
-        file.name.endsWith(`-${graalpyPlatform}-${graalpyArch}.tar.gz`));
+        file.name.endsWith(`-${graalpyPlatform}-${graalpyArch}.${graalpyExt}`));
     /*
     In the future there could be more variants of GraalPy for a single release. Pick the shortest name, that one is the most likely to be the primary variant.
     */
