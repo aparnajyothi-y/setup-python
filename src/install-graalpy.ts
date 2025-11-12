@@ -20,6 +20,7 @@ import {
 
 const TOKEN = core.getInput('token');
 const AUTH = !TOKEN ? undefined : `token ${TOKEN}`;
+
 export async function installGraalPy(
   graalpyVersion: string,
   architecture: string,
