@@ -97291,6 +97291,33 @@ const fs_1 = __importDefault(__nccwpck_require__(9896));
 const utils_1 = __nccwpck_require__(1798);
 const TOKEN = core.getInput('token');
 const AUTH = !TOKEN ? undefined : `token ${TOKEN}`;
+/*
+ * Generic retry wrapper
+ */
+async function retry(fn, retries = 3, delayMs = 2000) {
+    let lastErr;
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            return await fn();
+        }
+        catch (err) {
+            lastErr = err;
+            const status = err?.statusCode ||
+                err?.httpStatusCode ||
+                err?.response?.message?.statusCode;
+            const retryable = !status || status >= 500 || status === 429 || status === 403;
+            core.warning(`Attempt ${attempt} failed: ${err.message}. ` +
+                (retryable && attempt < retries
+                    ? `Retrying in ${delayMs}ms...`
+                    : `No more retries.`));
+            if (!retryable || attempt === retries)
+                break;
+            await new Promise(res => setTimeout(res, delayMs));
+            delayMs *= 2; // exponential backoff
+        }
+    }
+    throw lastErr;
+}
 async function installGraalPy(graalpyVersion, architecture, allowPreReleases, releases) {
     let downloadDir;
     releases = releases ?? (await getAvailableGraalPyVersions());
@@ -97312,7 +97339,8 @@ async function installGraalPy(graalpyVersion, architecture, allowPreReleases, re
     const downloadUrl = `${foundAsset.browser_download_url}`;
     core.info(`Downloading GraalPy from "${downloadUrl}" ...`);
     try {
-        const graalpyPath = await tc.downloadTool(downloadUrl, undefined, AUTH);
+        // ⭐ Wrapped in retry
+        const graalpyPath = await retry(() => tc.downloadTool(downloadUrl, undefined, AUTH), 4, 2000);
         core.info('Extracting downloaded archive...');
         if (utils_1.IS_WINDOWS) {
             downloadDir = await tc.extractZip(graalpyPath);
@@ -97320,7 +97348,6 @@ async function installGraalPy(graalpyVersion, architecture, allowPreReleases, re
         else {
             downloadDir = await tc.extractTar(graalpyPath);
         }
-        // folder name in archive is unpredictable
         const archiveName = fs_1.default.readdirSync(downloadDir)[0];
         const toolDir = path.join(downloadDir, archiveName);
         let installDir = toolDir;
@@ -97334,54 +97361,16 @@ async function installGraalPy(graalpyVersion, architecture, allowPreReleases, re
     }
     catch (err) {
         if (err instanceof Error) {
-            const isRateLimit = err instanceof tc.HTTPError &&
-                (err.httpStatusCode === 403 || err.httpStatusCode === 429);
-            if (isRateLimit) {
-                core.warning(`Rate limit or restricted access response received: HTTP ${err.httpStatusCode}`);
-                let lastStatus;
-                for (let attempt = 1; attempt <= 3; attempt++) {
-                    core.info(`Retry attempt ${attempt} of 3 due to rate limit...`);
-                    await new Promise(res => setTimeout(res, 2000 * attempt));
-                    try {
-                        const retryPath = await tc.downloadTool(downloadUrl, undefined, AUTH);
-                        core.info(`Retry succeeded.`);
-                        // Extract retry archive
-                        let retryExtractDir;
-                        if (utils_1.IS_WINDOWS) {
-                            retryExtractDir = await tc.extractZip(retryPath);
-                        }
-                        else {
-                            retryExtractDir = await tc.extractTar(retryPath);
-                        }
-                        const archiveName = fs_1.default.readdirSync(retryExtractDir)[0];
-                        const toolDir = path.join(retryExtractDir, archiveName);
-                        let installDir = toolDir;
-                        if (!(0, utils_1.isNightlyKeyword)(resolvedGraalPyVersion)) {
-                            installDir = await tc.cacheDir(toolDir, 'GraalPy', resolvedGraalPyVersion, architecture);
-                        }
-                        const binaryPath = path.join(installDir, 'bin');
-                        await createGraalPySymlink(binaryPath, resolvedGraalPyVersion);
-                        await installPip(binaryPath);
-                        return { installDir, resolvedGraalPyVersion };
-                    }
-                    catch (retryErr) {
-                        if (retryErr instanceof tc.HTTPError) {
-                            lastStatus = retryErr.httpStatusCode;
-                            core.warning(`Retry ${attempt} failed. HTTP ${lastStatus}`);
-                        }
-                        else {
-                            core.warning(`Retry ${attempt} failed: ${retryErr}`);
-                        }
-                        if (attempt === 3) {
-                            core.error(`All retries failed. Last HTTP status code: ${lastStatus ?? 'unknown'}`);
-                            throw retryErr;
-                        }
-                    }
-                }
+            if (err instanceof tc.HTTPError &&
+                (err.httpStatusCode === 403 || err.httpStatusCode === 429)) {
+                core.info(`Received HTTP status code ${err.httpStatusCode}.  This usually indicates the rate limit has been exceeded`);
             }
-            core.info(err.message);
-            if (err.stack)
+            else {
+                core.info(err.message);
+            }
+            if (err.stack !== undefined) {
                 core.debug(err.stack);
+            }
         }
         throw err;
     }
@@ -97393,12 +97382,12 @@ async function getAvailableGraalPyVersions() {
         headers.authorization = AUTH;
     }
     /*
-    Get releases first.
-    */
+     * Stable releases with retry
+     */
     let url = 'https://api.github.com/repos/oracle/graalpython/releases';
     const result = [];
     do {
-        const response = await http.getJson(url, headers);
+        const response = await retry(() => http.getJson(url, headers), 4, 1500);
         if (!response.result) {
             throw new Error(`Unable to retrieve the list of available GraalPy versions from '${url}'`);
         }
@@ -97406,12 +97395,12 @@ async function getAvailableGraalPyVersions() {
         url = (0, utils_1.getNextPageUrl)(response);
     } while (url);
     /*
-    Add pre-release builds.
-    */
+     * Pre-release builds with retry
+     */
     url =
         'https://api.github.com/repos/graalvm/graal-languages-ea-builds/releases';
     do {
-        const response = await http.getJson(url, headers);
+        const response = await retry(() => http.getJson(url, headers), 4, 1500);
         if (!response.result) {
             throw new Error(`Unable to retrieve the list of available GraalPy versions from '${url}'`);
         }
@@ -97490,9 +97479,6 @@ function findAsset(item, architecture, platform) {
     const graalpyExt = platform == 'win32' ? 'zip' : 'tar.gz';
     const found = item.assets.filter(file => file.name.startsWith('graalpy') &&
         file.name.endsWith(`-${graalpyPlatform}-${graalpyArch}.${graalpyExt}`));
-    /*
-    In the future there could be more variants of GraalPy for a single release. Pick the shortest name, that one is the most likely to be the primary variant.
-    */
     found.sort((f1, f2) => f1.name.length - f2.name.length);
     return found[0];
 }
