@@ -21,6 +21,45 @@ import {
 const TOKEN = core.getInput('token');
 const AUTH = !TOKEN ? undefined : `token ${TOKEN}`;
 
+/*
+ * Generic retry wrapper
+ */
+async function retry<T>(
+  fn: () => Promise<T>,
+  retries = 3,
+  delayMs = 2000
+): Promise<T> {
+  let lastErr;
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      lastErr = err;
+
+      const status =
+        err?.statusCode ||
+        err?.httpStatusCode ||
+        err?.response?.message?.statusCode;
+
+      const retryable =
+        !status || status >= 500 || status === 429 || status === 403;
+
+      core.warning(
+        `Attempt ${attempt} failed: ${err.message}. ` +
+          (retryable && attempt < retries
+            ? `Retrying in ${delayMs}ms...`
+            : `No more retries.`)
+      );
+
+      if (!retryable || attempt === retries) break;
+
+      await new Promise(res => setTimeout(res, delayMs));
+      delayMs *= 2; // exponential backoff
+    }
+  }
+  throw lastErr;
+}
+
 export async function installGraalPy(
   graalpyVersion: string,
   architecture: string,
@@ -38,7 +77,6 @@ export async function installGraalPy(
   let releaseData = findRelease(releases, graalpyVersion, architecture, false);
 
   if (allowPreReleases && (!releaseData || !releaseData.foundAsset)) {
-    // check for pre-release
     core.info(
       [
         `Stable GraalPy version ${graalpyVersion} with arch ${architecture} not found`,
@@ -60,7 +98,12 @@ export async function installGraalPy(
   core.info(`Downloading GraalPy from "${downloadUrl}" ...`);
 
   try {
-    const graalpyPath = await tc.downloadTool(downloadUrl, undefined, AUTH);
+    // ⭐ Wrapped in retry
+    const graalpyPath = await retry(
+      () => tc.downloadTool(downloadUrl, undefined, AUTH),
+      4,
+      2000
+    );
 
     core.info('Extracting downloaded archive...');
     if (IS_WINDOWS) {
@@ -69,8 +112,6 @@ export async function installGraalPy(
       downloadDir = await tc.extractTar(graalpyPath);
     }
 
-    // root folder in archive can have unpredictable name so just take the first folder
-    // downloadDir is unique folder under TEMP and can't contain any other folders
     const archiveName = fs.readdirSync(downloadDir)[0];
 
     const toolDir = path.join(downloadDir, archiveName);
@@ -91,7 +132,6 @@ export async function installGraalPy(
     return {installDir, resolvedGraalPyVersion};
   } catch (err) {
     if (err instanceof Error) {
-      // Rate limit?
       if (
         err instanceof tc.HTTPError &&
         (err.httpStatusCode === 403 || err.httpStatusCode === 429)
@@ -119,14 +159,18 @@ export async function getAvailableGraalPyVersions() {
   }
 
   /*
-  Get releases first.
-  */
+   * Stable releases with retry
+   */
   let url: string | null =
     'https://api.github.com/repos/oracle/graalpython/releases';
   const result: IGraalPyManifestRelease[] = [];
   do {
-    const response: ifm.TypedResponse<IGraalPyManifestRelease[]> =
-      await http.getJson(url, headers);
+    const response: ifm.TypedResponse<IGraalPyManifestRelease[]> = await retry(
+      () => http.getJson(url!, headers),
+      4,
+      1500
+    );
+
     if (!response.result) {
       throw new Error(
         `Unable to retrieve the list of available GraalPy versions from '${url}'`
@@ -137,13 +181,17 @@ export async function getAvailableGraalPyVersions() {
   } while (url);
 
   /*
-  Add pre-release builds.
-  */
+   * Pre-release builds with retry
+   */
   url =
     'https://api.github.com/repos/graalvm/graal-languages-ea-builds/releases';
   do {
-    const response: ifm.TypedResponse<IGraalPyManifestRelease[]> =
-      await http.getJson(url, headers);
+    const response: ifm.TypedResponse<IGraalPyManifestRelease[]> = await retry(
+      () => http.getJson(url!, headers),
+      4,
+      1500
+    );
+
     if (!response.result) {
       throw new Error(
         `Unable to retrieve the list of available GraalPy versions from '${url}'`
@@ -281,9 +329,7 @@ export function findAsset(
       file.name.startsWith('graalpy') &&
       file.name.endsWith(`-${graalpyPlatform}-${graalpyArch}.${graalpyExt}`)
   );
-  /*
-  In the future there could be more variants of GraalPy for a single release. Pick the shortest name, that one is the most likely to be the primary variant.
-  */
+
   found.sort((f1, f2) => f1.name.length - f2.name.length);
   return found[0];
 }
